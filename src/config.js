@@ -32,7 +32,7 @@ export const M_WINDUP = 0.55, M_STRIKE = 0.18, M_RECOVER = 0.68, M_DMG = 14, M_K
 export const MINION_HP = 60;
 
 // ---- Boss ----
-export const BOSS_HP = 420, BOSS_MAX_POSTURE = 100;
+export const BOSS_HP = 480, BOSS_MAX_POSTURE = 100;   // 6 波 5 次强化后玩家更强，终战相应加血
 export const BOSS_MOVES = {
   slam:   { windup: 0.75, active: 0.22, recover: 0.82, range: 4.2, arc: Math.PI,        dmg: 32, knock: 12, lunge: 0 },
   sweep:  { windup: 0.55, active: 0.24, recover: 0.68, range: 3.6, arc: Math.PI * 0.75, dmg: 24, knock: 8,  lunge: 0 },
@@ -64,10 +64,12 @@ export const PICKUP = { drop: 0.33, hp: 25, energy: 30 };
 
 // ---- 波次：逐波递增，清空后进入下一波；最后一波后召唤 Boss ----
 export const WAVES = [
-  { imp: 3 },
-  { imp: 2, caster: 1 },
-  { imp: 3, caster: 1, dasher: 1 },
-  { imp: 3, caster: 2, dasher: 2 },
+  { imp: 3 },                          // 1 · 热身：纯小鬼
+  { imp: 4, caster: 1 },               // 2 · 引入术士（远程弹幕）
+  { imp: 3, caster: 1, dasher: 1 },    // 3 · 引入刺客（突进）
+  { imp: 4, caster: 2, dasher: 1 },    // 4 · 远程压制
+  { imp: 3, caster: 1, dasher: 3 },    // 5 · 突进围攻
+  { imp: 5, caster: 2, dasher: 2 },    // 6 · 全员压上 → Boss
 ];
 
 // ---- 阵营配色（自发光，配合 Bloom 发光）----

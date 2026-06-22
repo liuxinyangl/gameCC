@@ -37,6 +37,7 @@ export const player = {
   _sprinting: false,
   // 肉鸽强化累积（波间 3 选 1）
   lifesteal: 0, critChance: 0, critMult: 1.8, energyMul: 1, rangeMul: 1, dodgeEnergy: 0,
+  speedMul: 1, dmgReduction: 0,
   radius: 0.5,
 };
 player.mesh.position.set(0, 0, 8);
@@ -134,7 +135,8 @@ export function parrySuccess(e) {
 
 // 玩家被命中
 export function hitPlayer(dmg, fromDir) {
-  player.hp -= dmg;
+  player.hp -= dmg * (1 - player.dmgReduction);   // 「守势」强化减伤
+
   player.vel.copy(fromDir).multiplyScalar(5).negate();
   if (player.state !== 'dodge' && player.state !== 'ult') {   // 打断攻击/重击/回血/格挡
     player.state = 'idle';
@@ -233,7 +235,7 @@ export function updatePlayer(dt, t) {
     const attacking = player.state === 'attack' || player.state === 'heavy';
     const sprint = keys['ShiftLeft'] && moving && player.sp > 1 && !attacking;
     player._sprinting = sprint;
-    let speed = sprint ? SPRINT_SPEED : MOVE_SPEED;
+    let speed = (sprint ? SPRINT_SPEED : MOVE_SPEED) * player.speedMul;   // 「疾风步」强化
     if (attacking) speed *= 0.4;
     player._moving = moving;
     if (moving) {

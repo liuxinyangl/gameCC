@@ -12,6 +12,8 @@ export const UPGRADES = [
   { icon: '⚔️', name: '影刃延伸', desc: '攻击范围 +20%',             apply() { player.rangeMul += 0.2; } },
   { icon: '🧪', name: '备用药剂', desc: '回血药 +1',                 apply() { player.flasks += 1; } },
   { icon: '🛡️', name: '坚韧',     desc: '最大耐力 +20，立即回满',     apply() { player.maxSp += 20; player.sp = player.maxSp; } },
+  { icon: '🏃', name: '疾风步',   desc: '移动速度 +12%',             apply() { player.speedMul += 0.12; } },
+  { icon: '🪨', name: '守势',     desc: '受到伤害 -10%',             apply() { player.dmgReduction = Math.min(0.5, player.dmgReduction + 0.1); } },
 ];
 
 let choices = [];
