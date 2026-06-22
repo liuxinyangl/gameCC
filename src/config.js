@@ -43,9 +43,38 @@ export const BOSS_STAGGER_DUR = 2.8, POSTURE_REGEN = 6;
 export const BOSS_COMBOS    = [['sweep', 'slam'], ['charge', 'sweep']];
 export const BOSS_COMBOS_P2 = [['sweep', 'sweep', 'slam'], ['charge', 'sweep', 'slam'], ['charge', 'slam']];
 
+// ---- 暗影术士（远程，绿色弹幕，可被弹反打回）----
+export const CASTER_HP = 44;
+export const C_KITE = 8;             // 理想风筝距离（更近就后撤）
+export const C_CAST_RANGE = 17;      // 进入此距离开始施法
+export const C_WINDUP = 0.85, C_RECOVER = 1.0, C_SPEED = 3.2;
+
+// ---- 弹幕 ----
+export const PROJ = { speed: 9, dmg: 16, life: 3.2, radius: 0.45, reflectSpeed: 18, reflectDmg: 30 };
+
+// ---- 影刃刺客（高速突进，突进前有明显后仰预兆）----
+export const DASHER_HP = 38;
+export const D_RANGE = 7;             // 进入此距离起手突进
+export const D_SPEED = 5.6;           // 追击速度（比小鬼快）
+export const D_WINDUP = 0.5, D_DASH = 0.26, D_RECOVER = 0.7;
+export const D_DASH_SPEED = 22, D_DMG = 18;
+
+// ---- 掉落拾取（杂兵死亡概率掉落）----
+export const PICKUP = { drop: 0.33, hp: 25, energy: 30 };
+
+// ---- 波次：逐波递增，清空后进入下一波；最后一波后召唤 Boss ----
+export const WAVES = [
+  { imp: 3 },
+  { imp: 2, caster: 1 },
+  { imp: 3, caster: 1, dasher: 1 },
+  { imp: 3, caster: 2, dasher: 2 },
+];
+
 // ---- 阵营配色（自发光，配合 Bloom 发光）----
 export const COLORS = {
   player: 0x4dabf7, playerGlow: 0x2b6cff,
   minion: 0xb02a2a, minionGlow: 0xff3b3b,
   boss: 0x7b2fbf,   bossGlow: 0xb13bff, bossRage: 0xff2244,
+  caster: 0x2a5a30, casterGlow: 0x7cff4d,
+  dasher: 0x0e3a3a, dasherGlow: 0x40f0ff,
 };

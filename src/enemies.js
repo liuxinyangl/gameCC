@@ -3,9 +3,11 @@
 // =============================================================
 import * as THREE from 'three';
 import { scene, camera, pulseBloom } from './scene.js';
-import { buildImp, buildDemon, flash, updateFlash, tintArm, buildHealthBar, setBar } from './models.js';
+import { buildImp, buildDemon, buildCaster, buildDasher, flash, updateFlash, tintArm, buildHealthBar, setBar } from './models.js';
 import { resolveCollisions } from './world.js';
 import { spawnShockwave, spawnBurst, spawnDamageNumber } from './effects.js';
+import { spawnProjectile } from './projectiles.js';
+import { spawnPickup } from './pickups.js';
 import { lerpAngle } from './util.js';
 import { state, addShake, hitStop } from './state.js';
 import { player, hitPlayer, parryActive, parrySuccess } from './player.js';
@@ -15,6 +17,8 @@ import {
   MINION_HP, M_DETECT, M_ATK_RANGE, M_SPEED, M_WINDUP, M_STRIKE, M_RECOVER, M_DMG,
   BOSS_HP, BOSS_MAX_POSTURE, BOSS_MOVES, BOSS_SPEED, BOSS_ENGAGE, BOSS_STAGGER_DUR,
   POSTURE_REGEN, BOSS_COMBOS, BOSS_COMBOS_P2, COLORS,
+  CASTER_HP, C_KITE, C_CAST_RANGE, C_WINDUP, C_RECOVER, C_SPEED,
+  DASHER_HP, D_RANGE, D_SPEED, D_WINDUP, D_DASH, D_RECOVER, D_DASH_SPEED, D_DMG, PICKUP,
 } from './config.js';
 
 export const enemies = [];
@@ -32,6 +36,39 @@ export function spawnMinion(x, z) {
     vel: new THREE.Vector3(), radius: 0.5, deadTime: 0, isBoss: false,
   };
   e.mesh.scale.setScalar(0.88);          // 小恶魔体型偏小
+  e.mesh.position.set(x, 0, z);
+  e.mesh.add(e.bar);
+  scene.add(e.mesh);
+  enemies.push(e);
+}
+
+export function spawnCaster(x, z) {
+  const e = {
+    mesh: buildCaster(),
+    bar: buildHealthBar(1.1, 2.7),
+    glowColor: COLORS.casterGlow,
+    hp: CASTER_HP, maxHp: CASTER_HP,
+    heading: 0, state: 'kite', timer: 0,
+    vel: new THREE.Vector3(), radius: 0.5, deadTime: 0, isBoss: false, isCaster: true,
+  };
+  e.mesh.scale.setScalar(0.92);
+  e.mesh.position.set(x, 0, z);
+  e.mesh.add(e.bar);
+  scene.add(e.mesh);
+  enemies.push(e);
+}
+
+export function spawnDasher(x, z) {
+  const e = {
+    mesh: buildDasher(),
+    bar: buildHealthBar(1.0, 2.6),
+    glowColor: COLORS.dasherGlow,
+    hp: DASHER_HP, maxHp: DASHER_HP,
+    heading: 0, state: 'chase', timer: 0, didHit: false,
+    dashDir: new THREE.Vector3(),
+    vel: new THREE.Vector3(), radius: 0.45, deadTime: 0, isBoss: false, isDasher: true,
+  };
+  e.mesh.scale.setScalar(0.82);
   e.mesh.position.set(x, 0, z);
   e.mesh.add(e.bar);
   scene.add(e.mesh);
@@ -100,6 +137,7 @@ export function killEnemy(e) {
   if (e === state.lockTarget) state.lockTarget = null;
   spawnBurst(e.mesh.position.x, e.isBoss ? 2.4 : 1.4, e.mesh.position.z,
     { count: e.isBoss ? 70 : 26, color: e.glowColor, speed: e.isBoss ? 11 : 7, size: e.isBoss ? 0.8 : 0.5, life: 0.8, gravity: 4 });
+  if (!e.isBoss && Math.random() < PICKUP.drop) spawnPickup(e.mesh.position.x, e.mesh.position.z, Math.random() < 0.5 ? 'hp' : 'energy');
   if (e.isBoss) { hideBossUI(); addShake(0.7); pulseBloom(2.2); sfx.exec(); }
 }
 
@@ -155,6 +193,133 @@ export function updateMinion(e, dt) {
     case 'recover':
       ud.armR.rotation.x = lerpAngle(ud.armR.rotation.x, 0, 0.15);
       if (e.timer >= M_RECOVER) e.state = 'chase';
+      break;
+  }
+
+  resolveCollisions(e.mesh.position, e.radius);
+  setBar(e.bar, e.hp / e.maxHp);
+  e.bar.quaternion.copy(camera.quaternion);
+  updateFlash(e.mesh, dt);
+}
+
+// ---------- 暗影术士 AI（风筝 + 远程施法）----------
+export function updateCaster(e, dt) {
+  if (e.state === 'dead') {
+    e.deadTime += dt;
+    e.mesh.rotation.x = Math.min(e.deadTime * 4, Math.PI / 2);
+    e.mesh.position.y = -e.deadTime * 0.6;
+    if (e.deadTime > 1.4) { scene.remove(e.mesh); e.state = 'gone'; }
+    return;
+  }
+  if (e.state === 'gone') return;
+
+  e.mesh.position.addScaledVector(e.vel, dt);
+  e.vel.multiplyScalar(0.82);
+
+  tmp.copy(player.mesh.position).sub(e.mesh.position); tmp.y = 0;
+  const dist = tmp.length();
+  const toP = tmpN.copy(tmp).normalize();
+  e.heading = Math.atan2(toP.x, toP.z);
+  e.mesh.rotation.y = lerpAngle(e.mesh.rotation.y, e.heading, 0.12);
+
+  const ud = e.mesh.userData;
+  e.timer += dt;
+  switch (e.state) {
+    case 'idle':
+    case 'kite': {
+      if (player.state === 'dead') { e.state = 'idle'; ud.legL.rotation.x = ud.legR.rotation.x = 0; break; }
+      let mv = 0;                                   // 走位：太近后撤，太远靠近到射程
+      if (dist < C_KITE - 1.5) mv = -1;
+      else if (dist > C_CAST_RANGE) mv = 1;
+      if (mv !== 0) {
+        e.mesh.position.addScaledVector(toP, mv * C_SPEED * dt);
+        const sw = Math.sin(performance.now() * 0.011 + e.mesh.id) * 0.5;
+        ud.legL.rotation.x = sw; ud.legR.rotation.x = -sw;
+      } else { ud.legL.rotation.x = ud.legR.rotation.x = 0; }
+      if (dist <= C_CAST_RANGE && dist >= C_KITE - 1.5 && e.timer > 0.5) { e.state = 'windup'; e.timer = 0; sfx.cast(); }
+      break;
+    }
+    case 'windup':                                  // 蓄力：举手 + 绿色染色预兆
+      tintArm(e.mesh, 0x9cff66);
+      ud.armR.rotation.x = -2.2 * Math.min(1, e.timer / C_WINDUP);
+      if (e.timer >= C_WINDUP) {
+        const sx = e.mesh.position.x + toP.x * 0.6, sz = e.mesh.position.z + toP.z * 0.6;
+        spawnProjectile(sx, 1.4, sz, toP.x, toP.z, COLORS.casterGlow);
+        spawnBurst(sx, 1.4, sz, { count: 8, color: COLORS.casterGlow, speed: 4, size: 0.3, life: 0.3 });
+        sfx.zap(); flash(e.mesh, 0xccff99);
+        e.state = 'recover'; e.timer = 0; tintArm(e.mesh, null);
+      }
+      break;
+    case 'recover':
+      ud.armR.rotation.x = lerpAngle(ud.armR.rotation.x, 0, 0.12);
+      if (e.timer >= C_RECOVER) e.state = 'kite';
+      break;
+  }
+
+  resolveCollisions(e.mesh.position, e.radius);
+  setBar(e.bar, e.hp / e.maxHp);
+  e.bar.quaternion.copy(camera.quaternion);
+  updateFlash(e.mesh, dt);
+}
+
+// ---------- 影刃刺客 AI（追击 → 后仰预兆 → 高速突进 → 破绽）----------
+export function updateDasher(e, dt) {
+  if (e.state === 'dead') {
+    e.deadTime += dt;
+    e.mesh.rotation.x = Math.min(e.deadTime * 4, Math.PI / 2);
+    e.mesh.position.y = -e.deadTime * 0.6;
+    if (e.deadTime > 1.4) { scene.remove(e.mesh); e.state = 'gone'; }
+    return;
+  }
+  if (e.state === 'gone') return;
+
+  e.mesh.position.addScaledVector(e.vel, dt);
+  e.vel.multiplyScalar(0.82);
+
+  tmp.copy(player.mesh.position).sub(e.mesh.position); tmp.y = 0;
+  const dist = tmp.length();
+  const toP = tmpN.copy(tmp).normalize();
+  e.heading = Math.atan2(toP.x, toP.z);
+  if (e.state !== 'dash') e.mesh.rotation.y = lerpAngle(e.mesh.rotation.y, e.heading, 0.18);
+
+  const ud = e.mesh.userData;
+  e.timer += dt;
+  switch (e.state) {
+    case 'idle':
+    case 'chase':
+      if (player.state === 'dead') { e.state = 'idle'; ud.legL.rotation.x = ud.legR.rotation.x = 0; break; }
+      if (dist < D_RANGE) { e.state = 'windup'; e.timer = 0; }
+      else {
+        e.mesh.position.addScaledVector(toP, D_SPEED * dt);
+        const sw = Math.sin(performance.now() * 0.02 + e.mesh.id) * 0.8;   // 快步
+        ud.legL.rotation.x = sw; ud.legR.rotation.x = -sw;
+      }
+      break;
+    case 'windup': {                          // 后仰蓄势 + 青色染色预兆，末尾锁定突进方向
+      const p = Math.min(1, e.timer / D_WINDUP);
+      tintArm(e.mesh, 0x66f6ff);
+      ud.torso.rotation.x = -0.5 * p; ud.armR.rotation.x = -2.0 * p;
+      if (e.timer >= D_WINDUP) { e.dashDir.copy(toP); e.state = 'dash'; e.timer = 0; e.didHit = false; ud.torso.rotation.x = 0; sfx.dodge(); }
+      break;
+    }
+    case 'dash':                              // 高速直线突进
+      e.mesh.position.addScaledVector(e.dashDir, D_DASH_SPEED * dt);
+      ud.torso.rotation.x = 0.4; ud.armR.rotation.x = -1.0 + (e.timer / D_DASH) * 2.5;
+      spawnBurst(e.mesh.position.x, 1.0, e.mesh.position.z, { count: 2, color: e.glowColor, speed: 1, size: 0.35, life: 0.25 });
+      if (!e.didHit) {
+        const dx = player.mesh.position.x - e.mesh.position.x, dz = player.mesh.position.z - e.mesh.position.z;
+        if (Math.hypot(dx, dz) < player.radius + e.radius + 0.4 && player.state !== 'dead') {
+          e.didHit = true;
+          const nd = tmpN.set(dx, 0, dz).normalize();
+          if (parryActive()) parrySuccess(e);
+          else if (player.invuln <= 0) hitPlayer(D_DMG, nd);
+        }
+      }
+      if (e.state === 'dash' && e.timer >= D_DASH) { e.state = 'recover'; e.timer = 0; tintArm(e.mesh, null); ud.torso.rotation.x = 0; }
+      break;
+    case 'recover':                           // 突进后破绽
+      ud.armR.rotation.x = lerpAngle(ud.armR.rotation.x, 0, 0.15);
+      if (e.timer >= D_RECOVER) e.state = 'chase';
       break;
   }
 

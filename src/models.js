@@ -90,6 +90,8 @@ function buildCharacter(cfg) {
 export const buildHero  = () => buildCharacter({ skin: 0xf0d2a8, armor: COLORS.player, glow: COLORS.playerGlow, cape: 0x2747c8, weapon: 'sword', trim: 0x20283f });
 export const buildImp   = () => buildCharacter({ skin: 0xb83a2a, armor: 0x3a1410, glow: COLORS.minionGlow, eyeColor: 0xffd633, horns: true, ears: true, hunch: true, weapon: 'claw', trim: 0x25100c });
 export const buildDemon = () => buildCharacter({ skin: 0x5a2a7a, armor: 0x281338, glow: COLORS.bossGlow, eyeColor: 0xff3030, cape: 0x3a1052, horns: true, weapon: 'greatsword', trim: 0x18091f });
+export const buildCaster = () => buildCharacter({ skin: 0x3a6a44, armor: 0x16301c, glow: COLORS.casterGlow, eyeColor: 0xd0ff90, ears: true, hunch: true, weapon: 'none', cape: 0x1a3a22, trim: 0x0e2012 });
+export const buildDasher = () => buildCharacter({ skin: 0x244a52, armor: 0x0e2228, glow: COLORS.dasherGlow, eyeColor: 0xbafcff, ears: true, weapon: 'claw', trim: 0x081418 });
 
 // ---- 头顶血条（billboard）----
 export function buildHealthBar(width = 1, y = 2.5) {

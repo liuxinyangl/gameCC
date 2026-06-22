@@ -13,6 +13,7 @@ import { locked, keys } from './input.js';
 import { enemies, damageEnemy, staggerBoss } from './enemies.js';
 import { showEnd, flashScreen } from './hud.js';
 import { sfx } from './audio.js';
+import { addStyle, loseStyle, styleEnergyMult } from './style.js';
 import {
   LIGHT_COMBO, LIGHT_RANGE, LIGHT_ARC, LIGHT_KNOCK, HEAVY,
   DODGE_DURATION, DODGE_IFRAME, DODGE_SPEED, DODGE_COST,
@@ -34,6 +35,8 @@ export const player = {
   healTime: 0, parryTime: 0,
   ultTime: 0, ultTicks: new Set(),
   _sprinting: false,
+  // 肉鸽强化累积（波间 3 选 1）
+  lifesteal: 0, critChance: 0, critMult: 1.8, energyMul: 1, rangeMul: 1, dodgeEnergy: 0,
   radius: 0.5,
 };
 player.mesh.position.set(0, 0, 8);
@@ -41,7 +44,7 @@ scene.add(player.mesh);
 
 const tmp = new THREE.Vector3();
 const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _moveDir = new THREE.Vector3();
-const gainEnergy = v => { player.energy = Math.min(ENERGY_MAX, player.energy + v); };
+const gainEnergy = v => { player.energy = Math.min(ENERGY_MAX, player.energy + v * player.energyMul * styleEnergyMult()); };
 
 // 由 yaw + WASD 得到世界移动方向（复用 scratch，调用方即用即弃，不跨调用持有）
 export function moveDir() {
@@ -88,6 +91,7 @@ export function tryDodge() {
   if (dir.lengthSq() < 0.01) dir.set(Math.sin(player.heading), 0, Math.cos(player.heading));
   player.vel.copy(dir.normalize().multiplyScalar(DODGE_SPEED));
   spawnAfterimage(player.mesh, COLORS.playerGlow); sfx.dodge();
+  if (player.dodgeEnergy) gainEnergy(player.dodgeEnergy);   // 「疾影」强化：翻滚回能
 }
 export function tryHeal() {
   if (!locked || player.state === 'dead' || busy() || player.state === 'attack' || player.state === 'heavy' || player.state === 'parry') return;
@@ -109,13 +113,18 @@ export function tryUltimate() {
 }
 
 export function parryActive() { return player.state === 'parry' && player.parryTime <= PARRY.window; }
-// 被敌人攻击命中时若处于格挡窗口 → 弹反成功
-export function parrySuccess(e) {
+// 弹反成功的通用反馈（玩家位置特效 + 子弹时间 + 攒耐力/影能）—— 近战与弹幕弹反共用
+export function parryReward() {
   const sx = player.mesh.position.x + Math.sin(player.heading) * 1.0, sz = player.mesh.position.z + Math.cos(player.heading) * 1.0;
   spawnBurst(sx, 1.3, sz, { count: 26, color: 0xfff2a8, speed: 10, size: 0.5, life: 0.4, gravity: 2 });
   spawnSlash(player.mesh.position.x, 1.3, player.mesh.position.z, player.heading, 0xffffff, false);
   slowmo(SLOWMO_PARRY); addShake(0.4); sfx.parry(); pulseBloom(1.7); flashScreen('#ffffff', 0.32);
   player.sp = Math.min(player.maxSp, player.sp + 12); gainEnergy(ENERGY_GAIN.parry);
+  addStyle(18);   // 弹反给大量风格分
+}
+// 被近战命中时若处于格挡窗口 → 弹反成功（破势 / 打断）
+export function parrySuccess(e) {
+  parryReward();
   if (e.isBoss) {
     e.posture = Math.min(e.maxPosture, e.posture + PARRY.posture);
     flash(e.mesh, 0xffffaa);
@@ -133,7 +142,7 @@ export function hitPlayer(dmg, fromDir) {
     ud.torso.rotation.x = 0;
     ud.legL.rotation.x = ud.legR.rotation.x = 0;
   }
-  flash(player.mesh, 0xff2020); addShake(0.34); hitStop(0.05); sfx.hurt();
+  flash(player.mesh, 0xff2020); addShake(0.34); hitStop(0.05); sfx.hurt(); loseStyle();
   spawnBurst(player.mesh.position.x, 1.2, player.mesh.position.z, { count: 10, color: 0xff3030, speed: 5, size: 0.4, life: 0.4 });
   gainEnergy(ENERGY_GAIN.hurt);
   if (player.hp <= 0) { player.hp = 0; player.state = 'dead'; showEnd(false); }
@@ -150,7 +159,13 @@ function meleeHit(range, arc, dmg, knock, stagger, energyType, fx) {
     tmp.normalize();
     if (tmp.x * fxh + tmp.z * fz < Math.cos(arc)) continue;
     player.atkHit.add(e);
-    if (damageEnemy(e, dmg, fxh, fz, knock, { stagger, ...fx })) gainEnergy(ENERGY_GAIN[energyType]);
+    let dmgOut = dmg; const opts = { stagger, ...fx };
+    if (Math.random() < player.critChance) { dmgOut *= player.critMult; opts.kind = 'crit'; }   // 暴击
+    if (damageEnemy(e, dmgOut, fxh, fz, knock, opts)) {
+      gainEnergy(ENERGY_GAIN[energyType]);
+      addStyle(energyType === 'heavy' ? 14 : 7);   // 风格：命中累积
+      if (player.lifesteal > 0) player.hp = Math.min(player.maxHp, player.hp + dmgOut * player.lifesteal);   // 吸血
+    }
   }
 }
 // 大招 360° 命中
@@ -162,6 +177,7 @@ function radialHit(range, dmg, knock) {
     if (d > range + e.radius) continue;
     const dx = d > 0.001 ? tmp.x / d : 0, dz = d > 0.001 ? tmp.z / d : 1;
     damageEnemy(e, dmg, dx, dz, knock, { hitStop: HITSTOP.ult, kind: 'crit', sound: 'exec' });
+    addStyle(9);
   }
 }
 
@@ -248,7 +264,7 @@ export function updatePlayer(dt, t) {
     ud.armR.rotation.x = -2.4 + Math.sin(Math.min(p, 1) * Math.PI) * amp;
     ud.armR.rotation.z = (player.atkStep === 1 ? -1 : 1) * Math.sin(Math.min(p, 1) * Math.PI) * 0.5;
     if (player.atkTime >= c.a0 && player.atkTime <= c.a1)
-      meleeHit(LIGHT_RANGE, LIGHT_ARC, c.dmg, LIGHT_KNOCK, false, 'light', { hitStop: HITSTOP.light, sound: 'hit' });
+      meleeHit(LIGHT_RANGE * player.rangeMul, LIGHT_ARC, c.dmg, LIGHT_KNOCK, false, 'light', { hitStop: HITSTOP.light, sound: 'hit' });
     if (player.atkTime >= c.dur) {
       if (player.atkQueued && player.atkStep < LIGHT_COMBO.length - 1) startLight(player.atkStep + 1);
       else { player.state = 'idle'; ud.armR.rotation.x = ud.armR.rotation.z = 0; }
@@ -259,7 +275,7 @@ export function updatePlayer(dt, t) {
     const p = player.atkTime / HEAVY.dur;
     ud.armR.rotation.x = -2.8 + Math.pow(Math.min(p, 1), 2) * 5.0;
     if (player.atkTime >= HEAVY.a0 && player.atkTime <= HEAVY.a1)
-      meleeHit(HEAVY.range, HEAVY.arc, HEAVY.dmg, HEAVY.knock, true, 'heavy', { hitStop: HITSTOP.heavy, kind: 'heavy', sound: 'heavyHit' });
+      meleeHit(HEAVY.range * player.rangeMul, HEAVY.arc, HEAVY.dmg, HEAVY.knock, true, 'heavy', { hitStop: HITSTOP.heavy, kind: 'heavy', sound: 'heavyHit' });
     if (player.atkTime >= HEAVY.dur) { player.state = 'idle'; ud.armR.rotation.x = 0; }
   }
   else if (player.state !== 'dodge' && player.state !== 'parry' && player.state !== 'ult') {

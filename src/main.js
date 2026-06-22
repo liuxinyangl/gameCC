@@ -10,24 +10,16 @@ import { updateEffects } from './effects.js';
 import { state, timeScale, tickTimers } from './state.js';
 import { locked } from './input.js';
 import { player, updatePlayer } from './player.js';
-import { enemies, spawnMinion, spawnBoss, updateMinion, updateBoss, countAliveMinions } from './enemies.js';
+import { enemies, updateMinion, updateCaster, updateDasher, updateBoss } from './enemies.js';
 import { updateCamera, updateLockMark } from './camera.js';
-import { updateHUD, updateToast, updateBanner, toast } from './hud.js';
+import { updateHUD, updateToast, updateBanner } from './hud.js';
+import { updateProjectiles } from './projectiles.js';
+import { startWave, updateFlow } from './waves.js';
+import { updateStyle } from './style.js';
+import { updatePickups } from './pickups.js';
 
-// ---- 初始波次：3 杂兵 ----
-for (const [x, z] of [[-6, -8], [7, -6], [0, -12]]) spawnMinion(x, z);
-
-// ---- 关卡流程：清杂兵 → Boss ----
-let bossPendingTimer = 0;
-function updateFlow(dt) {
-  if (state.phase === 'minions' && countAliveMinions() === 0) {
-    state.phase = 'bossPending'; bossPendingTimer = 2.0;
-    toast('强 敌 降 临…', 2.0); state.lockTarget = null;
-  } else if (state.phase === 'bossPending') {
-    bossPendingTimer -= dt;
-    if (bossPendingTimer <= 0) { spawnBoss(); state.phase = 'boss'; }
-  }
-}
+// ---- 关卡流程在 waves.js；这里点燃第一波 ----
+startWave(1);
 
 // ---- 主循环 ----
 const clock = new THREE.Clock();
@@ -37,13 +29,18 @@ function tick() {
   tickTimers(realDt);                 // 顿帧/子弹时间计时器走真实时间
   const dt = realDt * timeScale();    // 战斗逻辑用缩放时间
 
-  if (state.started && locked && !state.ended) {
+  if (state.started && locked && !state.ended && state.phase !== 'upgrade') {
     updateFlow(realDt);
     updatePlayer(dt, clock.elapsedTime);
     for (const e of enemies) {
       if (e.isBoss) updateBoss(e, dt);
+      else if (e.isCaster) updateCaster(e, dt);
+      else if (e.isDasher) updateDasher(e, dt);
       else updateMinion(e, dt);
     }
+    updateProjectiles(dt);
+    updateStyle(dt);
+    updatePickups(dt);
   }
 
   // 表现层用真实时间，保证特效/镜头流畅

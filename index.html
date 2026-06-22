@@ -85,6 +85,30 @@
   #center .keys b { color: #ffd43b; }
   #center .big { font-size: 66px; letter-spacing: 10px; margin-bottom: 14px; }
   .win { color: #ffe066 !important; } .lose { color: #ff6b6b !important; }
+
+  /* ---- 波间强化选择 ---- */
+  #upgrade { position: fixed; inset: 0; z-index: 20; display: none; flex-direction: column; align-items: center; justify-content: center;
+             background: radial-gradient(ellipse at center, rgba(8,8,18,.78), rgba(2,2,6,.92)); color: #fff; }
+  #upgrade.show { display: flex; }
+  #upgrade h2 { font-size: 26px; letter-spacing: 6px; color: #ffd43b; margin-bottom: 22px; text-shadow: 0 2px 14px rgba(0,0,0,.8); }
+  #upCards { display: flex; gap: 18px; }
+  .upcard { width: 196px; min-height: 150px; padding: 18px 16px; border-radius: 14px; text-align: center;
+            background: linear-gradient(160deg,#1a2034,#0b0e1a); border: 2px solid #3a4a6a;
+            display: flex; flex-direction: column; gap: 9px; align-items: center; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+  .upcard .uicon { font-size: 34px; }
+  .upcard .uk { font-size: 12px; letter-spacing: 1px; color: #5bd0ff; font-weight: 700; }
+  .upcard .un { font-size: 19px; font-weight: 800; color: #fff; }
+  .upcard .ud { font-size: 13px; color: #9fb0c8; line-height: 1.55; }
+  #upgrade .tip { margin-top: 20px; font-size: 13px; opacity: .8; }
+  #upgrade .tip b { color: #ffd43b; }
+
+  /* ---- 风格评级 ---- */
+  #style { position: absolute; top: 150px; right: 24px; text-align: right; opacity: 0; transition: opacity .3s; }
+  #style.on { opacity: 1; }
+  #style .sr { font-size: 54px; font-weight: 900; font-style: italic; line-height: 1; text-shadow: 0 2px 12px rgba(0,0,0,.8); }
+  #style .sbar { width: 132px; height: 6px; margin: 5px 0 0 auto; background: rgba(0,0,0,.5); border-radius: 3px; overflow: hidden; }
+  #style .sbar .f { height: 100%; width: 0; transition: width .15s linear; }
+  #style .slabel { font-size: 11px; letter-spacing: 3px; color: #aeb6c4; margin-top: 3px; }
 </style>
 </head>
 <body>
@@ -101,6 +125,7 @@
   </div>
   <div id="lockTip"></div>
   <div id="quests"></div>
+  <div id="style"><div class="sr" id="styleRank">D</div><div class="sbar"><div class="f" id="styleFill"></div></div><div class="slabel">风格</div></div>
 
   <div id="bossName">暗 影 督 军</div>
   <div id="bossBar"><div class="fill" id="bossFill"></div></div>
@@ -121,6 +146,12 @@
 <div id="dmgLayer"></div>
 <div id="flash"></div>
 <div id="vignette"></div>
+
+<div id="upgrade">
+  <h2>选 择 强 化</h2>
+  <div id="upCards"></div>
+  <div class="tip">按 <b>1 / 2 / 3</b> 选择</div>
+</div>
 
 <div id="center">
   <h1>暗 影 试 炼</h1>

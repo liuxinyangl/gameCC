@@ -4,7 +4,8 @@
 export const state = {
   started: false,
   ended: false,
-  phase: 'minions',     // minions | bossPending | boss
+  phase: 'wave',        // wave | upgrade | bossPending | boss
+  wave: 0,              // 当前波次（从 1 起）
   lockTarget: null,
   shake: 0,
   hitStop: 0,           // 命中顿帧：>0 时几乎冻结战斗
