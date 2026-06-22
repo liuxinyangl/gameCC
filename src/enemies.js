@@ -3,7 +3,7 @@
 // =============================================================
 import * as THREE from 'three';
 import { scene, camera, pulseBloom } from './scene.js';
-import { buildImp, buildDemon, buildCaster, buildDasher, flash, updateFlash, tintArm, buildHealthBar, setBar } from './models.js';
+import { buildImp, buildDemon, buildCaster, buildDasher, buildBrute, flash, updateFlash, tintArm, buildHealthBar, setBar } from './models.js';
 import { resolveCollisions } from './world.js';
 import { spawnShockwave, spawnBurst, spawnDamageNumber } from './effects.js';
 import { spawnProjectile } from './projectiles.js';
@@ -19,6 +19,7 @@ import {
   POSTURE_REGEN, BOSS_COMBOS, BOSS_COMBOS_P2, COLORS,
   CASTER_HP, C_KITE, C_CAST_RANGE, C_WINDUP, C_RECOVER, C_SPEED,
   DASHER_HP, D_RANGE, D_SPEED, D_WINDUP, D_DASH, D_RECOVER, D_DASH_SPEED, D_DMG, PICKUP,
+  BRUTE_HP, BR_RANGE, BR_SPEED, BR_WINDUP, BR_ACTIVE, BR_RECOVER, BR_DMG,
 } from './config.js';
 
 export const enemies = [];
@@ -75,6 +76,22 @@ export function spawnDasher(x, z) {
   enemies.push(e);
 }
 
+export function spawnBrute(x, z) {
+  const e = {
+    mesh: buildBrute(),
+    bar: buildHealthBar(1.3, 3.0),
+    glowColor: COLORS.bruteGlow,
+    hp: BRUTE_HP, maxHp: BRUTE_HP,
+    heading: 0, state: 'chase', timer: 0, didHit: false,
+    vel: new THREE.Vector3(), radius: 0.7, deadTime: 0, isBoss: false, isBrute: true,
+  };
+  e.mesh.scale.setScalar(1.18);          // 体型壮硕
+  e.mesh.position.set(x, 0, z);
+  e.mesh.add(e.bar);
+  scene.add(e.mesh);
+  enemies.push(e);
+}
+
 export function spawnBoss() {
   const mesh = buildDemon();
   mesh.scale.setScalar(2.0);
@@ -114,7 +131,7 @@ export function damageEnemy(e, dmg, dx, dz, knock, opts = {}) {
   let kind = opts.kind || 'normal';
   if (e.isBoss && e.state === 'staggered') { dmg *= 2; kind = 'crit'; }   // 破势处决：双倍
   e.hp -= dmg;
-  e.vel.set(dx, 0, dz).multiplyScalar(knock);
+  e.vel.set(dx, 0, dz).multiplyScalar(e.isBrute ? knock * 0.3 : knock);   // 石卫重装：抗击退
   flash(e.mesh);
   addShake(0.18); hitStop(opts.hitStop || 0.04);
   const hy = e.isBoss ? 3.4 : 1.7;
@@ -124,7 +141,7 @@ export function damageEnemy(e, dmg, dx, dz, knock, opts = {}) {
   if (e.isBoss) sfx.bossHit();
   if (e.hp <= 0) { killEnemy(e); return true; }
   if (opts.stagger) {
-    if (!e.isBoss && (e.state === 'windup' || e.state === 'chase')) { e.state = 'recover'; e.timer = 0; tintArm(e.mesh, null); }
+    if (!e.isBoss && !e.isBrute && (e.state === 'windup' || e.state === 'chase')) { e.state = 'recover'; e.timer = 0; tintArm(e.mesh, null); }   // 石卫霸体：起手打不断
     else if (e.isBoss && e.state === 'windup') { e.state = 'recover'; e.timer = 0; tintArm(e.mesh, null); }
   }
   return true;
@@ -320,6 +337,75 @@ export function updateDasher(e, dt) {
     case 'recover':                           // 突进后破绽
       ud.armR.rotation.x = lerpAngle(ud.armR.rotation.x, 0, 0.15);
       if (e.timer >= D_RECOVER) e.state = 'chase';
+      break;
+  }
+
+  resolveCollisions(e.mesh.position, e.radius);
+  setBar(e.bar, e.hp / e.maxHp);
+  e.bar.quaternion.copy(camera.quaternion);
+  updateFlash(e.mesh, dt);
+}
+
+// ---------- 暗影石卫 AI（缓慢逼近 → 长蓄力过顶砸地 + 冲击波；霸体）----------
+export function updateBrute(e, dt) {
+  if (e.state === 'dead') {
+    e.deadTime += dt;
+    e.mesh.rotation.x = Math.min(e.deadTime * 4, Math.PI / 2);
+    e.mesh.position.y = -e.deadTime * 0.6;
+    if (e.deadTime > 1.4) { scene.remove(e.mesh); e.state = 'gone'; }
+    return;
+  }
+  if (e.state === 'gone') return;
+
+  e.mesh.position.addScaledVector(e.vel, dt);
+  e.vel.multiplyScalar(0.82);
+
+  tmp.copy(player.mesh.position).sub(e.mesh.position); tmp.y = 0;
+  const dist = tmp.length();
+  const toP = tmpN.copy(tmp).normalize();
+  e.heading = Math.atan2(toP.x, toP.z);
+  if (e.state !== 'active') e.mesh.rotation.y = lerpAngle(e.mesh.rotation.y, e.heading, 0.06);
+
+  const ud = e.mesh.userData;
+  e.timer += dt;
+  switch (e.state) {
+    case 'idle':
+    case 'chase':
+      if (player.state === 'dead') { e.state = 'idle'; ud.legL.rotation.x = ud.legR.rotation.x = 0; break; }
+      if (dist < BR_RANGE) { e.state = 'windup'; e.timer = 0; }
+      else {
+        e.mesh.position.addScaledVector(toP, BR_SPEED * dt);
+        const sw = Math.sin(performance.now() * 0.005 + e.mesh.id) * 0.4;   // 沉重慢步
+        ud.legL.rotation.x = sw; ud.legR.rotation.x = -sw;
+      }
+      break;
+    case 'windup': {                                  // 长蓄力：双手过顶高举 + 橙色染色预兆
+      const p = Math.min(1, e.timer / BR_WINDUP);
+      tintArm(e.mesh, 0xff6a00);
+      ud.armR.rotation.x = -2.9 * p; ud.torso.rotation.x = -0.25 * p;
+      if (e.timer >= BR_WINDUP) { e.state = 'active'; e.timer = 0; e.didHit = false; ud.armR.rotation.x = -2.9; }
+      break;
+    }
+    case 'active':                                    // 砸地：下劈 + 冲击波 AoE
+      ud.armR.rotation.x = -2.9 + (e.timer / BR_ACTIVE) * 4.2;
+      ud.torso.rotation.x = lerpAngle(ud.torso.rotation.x, 0.15, 0.3);
+      if (!e.didHit && e.timer > BR_ACTIVE * 0.5) {
+        e.didHit = true;
+        spawnShockwave(e.mesh.position.x, e.mesh.position.z, BR_RANGE * 1.5, e.glowColor);
+        spawnBurst(e.mesh.position.x, 0.4, e.mesh.position.z, { count: 26, color: e.glowColor, speed: 8, size: 0.55, life: 0.5, up: 2 });
+        addShake(0.4); sfx.bossHit();
+        const d = Math.hypot(player.mesh.position.x - e.mesh.position.x, player.mesh.position.z - e.mesh.position.z);
+        if (d < BR_RANGE + player.radius && player.state !== 'dead') {
+          if (parryActive()) parrySuccess(e);
+          else if (player.invuln <= 0) { tmpN.set(player.mesh.position.x - e.mesh.position.x, 0, player.mesh.position.z - e.mesh.position.z).normalize(); hitPlayer(BR_DMG, tmpN); }
+        }
+      }
+      if (e.state === 'active' && e.timer >= BR_ACTIVE) { e.state = 'recover'; e.timer = 0; tintArm(e.mesh, null); }
+      break;
+    case 'recover':                                   // 大破绽：手臂/上身回正
+      ud.armR.rotation.x = lerpAngle(ud.armR.rotation.x, 0, 0.1);
+      ud.torso.rotation.x = lerpAngle(ud.torso.rotation.x, 0, 0.1);
+      if (e.timer >= BR_RECOVER) { e.state = 'chase'; ud.torso.rotation.x = 0; }
       break;
   }
 

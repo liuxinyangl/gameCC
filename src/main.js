@@ -10,7 +10,7 @@ import { updateEffects } from './effects.js';
 import { state, timeScale, tickTimers } from './state.js';
 import { locked } from './input.js';
 import { player, updatePlayer } from './player.js';
-import { enemies, updateMinion, updateCaster, updateDasher, updateBoss } from './enemies.js';
+import { enemies, updateMinion, updateCaster, updateDasher, updateBrute, updateBoss } from './enemies.js';
 import { updateCamera, updateLockMark } from './camera.js';
 import { updateHUD, updateToast, updateBanner } from './hud.js';
 import { updateProjectiles } from './projectiles.js';
@@ -36,6 +36,7 @@ function tick() {
       if (e.isBoss) updateBoss(e, dt);
       else if (e.isCaster) updateCaster(e, dt);
       else if (e.isDasher) updateDasher(e, dt);
+      else if (e.isBrute) updateBrute(e, dt);
       else updateMinion(e, dt);
     }
     updateProjectiles(dt);

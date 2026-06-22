@@ -59,6 +59,13 @@ export const D_SPEED = 5.6;           // 追击速度（比小鬼快）
 export const D_WINDUP = 0.5, D_DASH = 0.26, D_RECOVER = 0.7;
 export const D_DASH_SPEED = 22, D_DMG = 18;
 
+// ---- 暗影石卫（重装：缓慢、高血、过顶砸地带冲击波；霸体——普通/重击打不断起手，须翻滚或弹反）----
+export const BRUTE_HP = 130;
+export const BR_RANGE = 3.0;          // 进入此距离起手砸地
+export const BR_SPEED = 2.2;          // 沉重缓慢逼近
+export const BR_WINDUP = 1.0, BR_ACTIVE = 0.32, BR_RECOVER = 1.1;   // 长蓄力 → 大破绽
+export const BR_DMG = 28;
+
 // ---- 掉落拾取（杂兵死亡概率掉落）----
 export const PICKUP = { drop: 0.33, hp: 25, energy: 30 };
 
@@ -66,10 +73,10 @@ export const PICKUP = { drop: 0.33, hp: 25, energy: 30 };
 export const WAVES = [
   { imp: 3 },                          // 1 · 热身：纯小鬼
   { imp: 4, caster: 1 },               // 2 · 引入术士（远程弹幕）
-  { imp: 3, caster: 1, dasher: 1 },    // 3 · 引入刺客（突进）
-  { imp: 4, caster: 2, dasher: 1 },    // 4 · 远程压制
-  { imp: 3, caster: 1, dasher: 3 },    // 5 · 突进围攻
-  { imp: 5, caster: 2, dasher: 2 },    // 6 · 全员压上 → Boss
+  { imp: 3, caster: 1, dasher: 1 },             // 3 · 引入刺客（突进）
+  { imp: 3, caster: 1, brute: 1 },              // 4 · 引入石卫（重装霸体）
+  { imp: 3, caster: 1, dasher: 3 },             // 5 · 突进围攻
+  { imp: 4, caster: 2, dasher: 2, brute: 1 },   // 6 · 全员压上 → Boss
 ];
 
 // ---- 阵营配色（自发光，配合 Bloom 发光）----
@@ -79,4 +86,5 @@ export const COLORS = {
   boss: 0x7b2fbf,   bossGlow: 0xb13bff, bossRage: 0xff2244,
   caster: 0x2a5a30, casterGlow: 0x7cff4d,
   dasher: 0x0e3a3a, dasherGlow: 0x40f0ff,
+  brute:  0x35353f, bruteGlow:  0xff7a2a,
 };

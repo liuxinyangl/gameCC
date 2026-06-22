@@ -3,7 +3,7 @@
 // =============================================================
 import { state } from './state.js';
 import { WAVES } from './config.js';
-import { spawnMinion, spawnCaster, spawnDasher, spawnBoss, countAliveMinions } from './enemies.js';
+import { spawnMinion, spawnCaster, spawnDasher, spawnBrute, spawnBoss, countAliveMinions } from './enemies.js';
 import { toast, showUpgrades, hideUpgrades } from './hud.js';
 import { rollUpgrades, applyUpgrade } from './upgrades.js';
 import { clearProjectiles } from './projectiles.js';
@@ -23,6 +23,7 @@ export function startWave(n) {
   spawnAround(spawnMinion, spec.imp || 0);
   spawnAround(spawnCaster, spec.caster || 0);
   spawnAround(spawnDasher, spec.dasher || 0);
+  spawnAround(spawnBrute, spec.brute || 0);
   toast(`第 ${n} 波 / ${WAVES.length}`, 1.8);
 }
 
