@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>钢铁前线 · 红警风 RTS Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0e0a; font-family: -apple-system, "PingFang SC", sans-serif; }
+  #c { display: block; cursor: crosshair; }
+  #center { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: radial-gradient(ellipse at center, rgba(0,0,0,.55), rgba(0,0,0,.9)); color: #fff; text-align: center; cursor: pointer; z-index: 10; }
+  #center.hidden { display: none; }
+  #center h1 { font-size: 46px; letter-spacing: 8px; margin-bottom: 10px; color: #ffd24a; text-shadow: 0 3px 16px rgba(0,0,0,.7); }
+  #center p { font-size: 15px; opacity: .85; margin: 4px 0; line-height: 1.7; max-width: 640px; }
+  #center .big { font-size: 60px; letter-spacing: 8px; margin-bottom: 12px; }
+  .win { color: #7bed9f !important; } .lose { color: #ff6b6b !important; }
+  #center b { color: #ffd24a; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="center">
+  <h1>钢 铁 前 线</h1>
+  <p>红警风即时战略 Demo：发展经济 → 建造基地 → 生产部队 → 摧毁敌方建造场。</p>
+  <p style="opacity:.7">
+    <b>左键</b> 选择 / 框选部队 · <b>右键</b> 移动 / 攻击 / 采矿 · <b>右侧栏</b> 造建筑和单位<br>
+    建筑：点按钮→在地图上落点 · <b>方向键/WASD 或 鼠标移到边缘</b> 移动镜头 · <b>小地图</b>可点击跳转
+  </p>
+  <p style="margin-top:24px;font-size:18px;color:#ffd24a;">▶ 点击开始</p>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

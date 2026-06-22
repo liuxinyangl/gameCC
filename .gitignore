@@ -1,0 +1,7 @@
+# macOS
+.DS_Store
+
+# 日志 / 杂项
+*.log
+
+# 注意：vendor/ 是有意提交的（本地 three.js，离线可跑），不要忽略
