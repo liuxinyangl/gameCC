@@ -64,6 +64,7 @@ export const sfx = {
   pickup()   { tone({ f0: 720, f1: 1320, dur: 0.16, type: 'sine', gain: 0.2 }); tone({ f0: 1080, f1: 1760, dur: 0.14, type: 'triangle', gain: 0.12, delay: 0.04 }); },
   roar()     { tone({ f0: 90, f1: 50, dur: 0.7, type: 'sawtooth', gain: 0.36 }); tone({ f0: 130, f1: 70, dur: 0.6, type: 'square', gain: 0.2, delay: 0.04 }); },
   bossHit()  { tone({ f0: 160, f1: 70, dur: 0.14, type: 'square', gain: 0.2 }); },
+  slam()     { tone({ f0: 150, f1: 38, dur: 0.45, type: 'sine', gain: 0.34 }); noise({ dur: 0.3, gain: 0.3, lp: 1300 }); tone({ f0: 92, f1: 30, dur: 0.55, type: 'triangle', gain: 0.26, delay: 0.03 }); },
   win()      { [523, 659, 784, 1047].forEach((f, i) => tone({ f0: f, dur: 0.3, type: 'triangle', gain: 0.26, delay: i * 0.12 })); },
   lose()     { [330, 247, 175, 110].forEach((f, i) => tone({ f0: f, dur: 0.4, type: 'sawtooth', gain: 0.26, delay: i * 0.15 })); },
 };

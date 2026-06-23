@@ -3,7 +3,7 @@
 // =============================================================
 import { state } from './state.js';
 import { WAVES } from './config.js';
-import { spawnMinion, spawnCaster, spawnDasher, spawnBrute, spawnBoss, countAliveMinions } from './enemies.js';
+import { enemies, spawnMinion, spawnCaster, spawnDasher, spawnBrute, spawnBoss, countAliveMinions, makeElite } from './enemies.js';
 import { toast, showUpgrades, hideUpgrades } from './hud.js';
 import { rollUpgrades, applyUpgrade } from './upgrades.js';
 import { clearProjectiles } from './projectiles.js';
@@ -14,6 +14,8 @@ function spawnAround(spawnFn, count) {
   for (let i = 0; i < count; i++) {
     const a = Math.random() * Math.PI * 2, r = randRange(9, 13);
     spawnFn(Math.cos(a) * r, Math.sin(a) * r - 4);
+    if (state.wave >= 3 && Math.random() < Math.min(0.3, 0.08 * (state.wave - 2)))
+      makeElite(enemies[enemies.length - 1]);            // 第 3 波起，精英概率随波上升（封顶 30%）
   }
 }
 

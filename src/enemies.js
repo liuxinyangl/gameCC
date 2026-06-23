@@ -117,6 +117,20 @@ export function spawnBoss() {
   sfx.roar(); addShake(0.5);
 }
 
+// 精英词缀：更壮、更肉、脚下描金光环、必掉双倍拾取（仅改属性与外观，不动任何 AI 逻辑）
+export function makeElite(e) {
+  e.isElite = true;
+  e.hp = e.maxHp = Math.round(e.maxHp * 1.8);
+  e.mesh.scale.multiplyScalar(1.25);
+  e.glowColor = 0xffd24a;                                    // 描金：受击/死亡爆裂染金 → 精英标识
+  const aura = new THREE.Mesh(
+    new THREE.TorusGeometry(0.82, 0.05, 8, 36),
+    new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  aura.rotation.x = Math.PI / 2; aura.position.y = 0.1;       // 脚下悬浮金环
+  e.mesh.add(aura);
+}
+
 export const aliveEnemies = () => enemies.filter(e => e.state !== 'dead' && e.state !== 'gone');
 // 存活杂兵数（每帧被 main/hud 调用，用计数循环避免 filter 建数组）
 export function countAliveMinions() {
@@ -154,7 +168,10 @@ export function killEnemy(e) {
   if (e === state.lockTarget) state.lockTarget = null;
   spawnBurst(e.mesh.position.x, e.isBoss ? 2.4 : 1.4, e.mesh.position.z,
     { count: e.isBoss ? 70 : 26, color: e.glowColor, speed: e.isBoss ? 11 : 7, size: e.isBoss ? 0.8 : 0.5, life: 0.8, gravity: 4 });
-  if (!e.isBoss && Math.random() < PICKUP.drop) spawnPickup(e.mesh.position.x, e.mesh.position.z, Math.random() < 0.5 ? 'hp' : 'energy');
+  if (!e.isBoss) {
+    if (e.isElite) { spawnPickup(e.mesh.position.x - 0.4, e.mesh.position.z, 'hp'); spawnPickup(e.mesh.position.x + 0.4, e.mesh.position.z, 'energy'); }   // 精英必掉双倍
+    else if (Math.random() < PICKUP.drop) spawnPickup(e.mesh.position.x, e.mesh.position.z, Math.random() < 0.5 ? 'hp' : 'energy');
+  }
   if (e.isBoss) { hideBossUI(); addShake(0.7); pulseBloom(2.2); sfx.exec(); }
 }
 
@@ -393,7 +410,7 @@ export function updateBrute(e, dt) {
         e.didHit = true;
         spawnShockwave(e.mesh.position.x, e.mesh.position.z, BR_RANGE * 1.5, e.glowColor);
         spawnBurst(e.mesh.position.x, 0.4, e.mesh.position.z, { count: 26, color: e.glowColor, speed: 8, size: 0.55, life: 0.5, up: 2 });
-        addShake(0.4); sfx.bossHit();
+        addShake(0.4); sfx.slam();
         const d = Math.hypot(player.mesh.position.x - e.mesh.position.x, player.mesh.position.z - e.mesh.position.z);
         if (d < BR_RANGE + player.radius && player.state !== 'dead') {
           if (parryActive()) parrySuccess(e);
