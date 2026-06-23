@@ -121,7 +121,7 @@ export function parryReward() {
   spawnSlash(player.mesh.position.x, 1.3, player.mesh.position.z, player.heading, 0xffffff, false);
   slowmo(SLOWMO_PARRY); addShake(0.4); sfx.parry(); pulseBloom(1.7); flashScreen('#ffffff', 0.32);
   player.sp = Math.min(player.maxSp, player.sp + 12); gainEnergy(ENERGY_GAIN.parry);
-  addStyle(18);   // 弹反给大量风格分
+  addStyle(18); state.parries++;   // 弹反给大量风格分 + 计入 Run 统计
 }
 // 被近战命中时若处于格挡窗口 → 弹反成功（破势 / 打断）
 export function parrySuccess(e) {

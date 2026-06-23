@@ -10,13 +10,16 @@ const RANKS = [
 ];
 const CAP = 140;
 let points = 0;
+let bestIdx = 0;                                                         // 本局达到过的最高评级（用于结算）
 
-export function addStyle(v) { points = Math.min(CAP, points + v); }     // 命中累积
+export function addStyle(v) { points = Math.min(CAP, points + v); if (curIdx() > bestIdx) bestIdx = curIdx(); }   // 命中累积
 export function loseStyle() { points = Math.max(0, points * 0.3 - 8); } // 挨打大跌
 export function updateStyle(dt) { points = Math.max(0, points - 12 * dt); }  // 缓慢衰减（逼着持续输出）
 
 function curIdx() { let i = 0; for (let k = 0; k < RANKS.length; k++) if (points >= RANKS[k].min) i = k; return i; }
 export function styleRank() { return RANKS[curIdx()]; }
+export function bestRank() { return RANKS[bestIdx]; }                    // 本局最高评级（结算用）
+export function bestStyleLevel() { return bestIdx; }
 export function styleEnergyMult() { return RANKS[curIdx()].mult; }       // 评级→影能倍率
 export function stylePoints() { return points; }
 export function styleProgress() {                                        // 当前评级内进度（用于条）

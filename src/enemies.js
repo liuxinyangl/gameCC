@@ -176,6 +176,7 @@ export function damageEnemy(e, dmg, dx, dz, knock, opts = {}) {
 export function killEnemy(e) {
   if (e.state === 'dead') return;
   e.state = 'dead'; e.deadTime = 0;
+  state.kills++; if (e.isElite) state.elites++;               // Run 统计
   if (e.bar) e.bar.visible = false;
   if (e === state.lockTarget) state.lockTarget = null;
   spawnBurst(e.mesh.position.x, e.isBoss ? 2.4 : 1.4, e.mesh.position.z,

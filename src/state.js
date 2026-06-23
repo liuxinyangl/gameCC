@@ -10,6 +10,8 @@ export const state = {
   shake: 0,
   hitStop: 0,           // 命中顿帧：>0 时几乎冻结战斗
   slowmo: 0,            // 子弹时间：>0 时减速
+  // ---- Run 结算统计（重开即 location.reload，自然归零）----
+  kills: 0, elites: 0, parries: 0, runTime: 0,
 };
 
 // 镜头角度：鼠标(input) 与 锁定(camera) 都会写它

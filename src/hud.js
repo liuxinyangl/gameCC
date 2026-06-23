@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { player } from './player.js';
 import { countAliveMinions } from './enemies.js';
 import { ENERGY_MAX, ULT, HEAVY, DODGE_COST, PARRY, WAVES } from './config.js';
-import { styleRank, styleProgress, stylePoints } from './style.js';
+import { styleRank, styleProgress, stylePoints, bestRank, bestStyleLevel } from './style.js';
 import { sfx } from './audio.js';
 
 const $ = id => document.getElementById(id);
@@ -98,8 +98,28 @@ export function showEnd(win) {
   document.exitPointerLock();
   (win ? sfx.win : sfx.lose)();
   overlay.classList.remove('hidden');
+
+  const br = bestRank();
+  const t = state.runTime, mm = Math.floor(t / 60), ss = Math.floor(t % 60);
+  const timeStr = `${mm}:${String(ss).padStart(2, '0')}`;
+  // 总分：基础击杀 + 精英 + 弹反 + 评级 + 通关奖励
+  const score = state.kills * 100 + state.elites * 300 + state.parries * 60 + bestStyleLevel() * 400 + (win ? 2000 : 0);
+  const stat = (label, val, color = '#fff') =>
+    `<div style="display:flex;flex-direction:column;gap:5px;min-width:64px">
+       <span style="font-size:12px;color:#8fa0b8;letter-spacing:2px">${label}</span>
+       <span style="font-size:27px;font-weight:800;color:${color}">${val}</span></div>`;
+
   overlay.innerHTML = `
     <div class="big ${win ? 'win' : 'lose'}">${win ? '试 炼 通 过' : '你 倒 下 了'}</div>
     <p>${win ? '暗影督军已被击溃，试炼达成。' : '影中的强敌将你击溃。'}</p>
-    <p style="margin-top:24px;font-size:18px;color:#ffd43b;">按 <b style="color:#ffd43b">R</b> 重新开始</p>`;
+    <div style="display:flex;gap:30px;margin:26px 0 10px;flex-wrap:wrap;justify-content:center">
+      ${stat('击杀', state.kills)}
+      ${stat('精英', state.elites, '#ffd24a')}
+      ${stat('弹反', state.parries, '#7be8ff')}
+      ${stat('最高评级', br.letter, br.color)}
+      ${stat('用时', timeStr)}
+    </div>
+    <div style="font-size:14px;color:#8fa0b8;letter-spacing:4px;margin-top:8px">总 分</div>
+    <div style="font-size:48px;font-weight:900;font-style:italic;color:#ffd43b;text-shadow:0 2px 16px rgba(0,0,0,.7)">${score.toLocaleString()}</div>
+    <p style="margin-top:22px;font-size:18px;color:#ffd43b;">按 <b style="color:#ffd43b">R</b> 重新开始</p>`;
 }

@@ -30,6 +30,7 @@ function tick() {
   const dt = realDt * timeScale();    // 战斗逻辑用缩放时间
 
   if (state.started && locked && !state.ended && state.phase !== 'upgrade') {
+    state.runTime += realDt;            // 计时（强化菜单/未开始时不累计）
     updateFlow(realDt);
     updatePlayer(dt, clock.elapsedTime);
     for (const e of enemies) {
