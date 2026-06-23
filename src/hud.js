@@ -20,6 +20,17 @@ const ultSlot = $('slotUlt'), healSlot = $('slotHeal'), slotHeavy = $('slotHeavy
 const upgradeEl = $('upgrade'), upCardsEl = $('upCards');
 const styleEl = $('style'), styleRankEl = $('styleRank'), styleFill = $('styleFill');
 
+// 历史最高分（跨会话持久化；localStorage 在隐私模式/file:// 下可能抛异常，故包一层）
+const BEST_KEY = 'shadowtrial.best';
+const getBest = () => { try { return +localStorage.getItem(BEST_KEY) || 0; } catch { return 0; } };
+const setBest = v => { try { localStorage.setItem(BEST_KEY, v); } catch {} };
+
+// 开始界面展示历史最高（载入即填）
+{
+  const best = getBest(), bestLine = $('bestLine');
+  if (best > 0 && bestLine) { bestLine.textContent = `历史最高 ${best.toLocaleString()}`; bestLine.style.display = 'block'; }
+}
+
 let questSig = '';
 export function updateHUD() {
   hpFill.style.width = (player.hp / player.maxHp * 100) + '%';
@@ -104,6 +115,12 @@ export function showEnd(win) {
   const timeStr = `${mm}:${String(ss).padStart(2, '0')}`;
   // 总分：基础击杀 + 精英 + 弹反 + 评级 + 通关奖励
   const score = state.kills * 100 + state.elites * 300 + state.parries * 60 + bestStyleLevel() * 400 + (win ? 2000 : 0);
+  const prevBest = getBest();
+  const isRecord = score > prevBest;
+  if (isRecord) setBest(score);
+  const recordLine = isRecord
+    ? `<div style="font-size:18px;font-weight:800;color:#ff6bd0;letter-spacing:3px;margin-top:10px">★ 新 纪 录 ！</div>`
+    : `<div style="font-size:13px;color:#8fa0b8;letter-spacing:2px;margin-top:10px">历史最高 ${prevBest.toLocaleString()}</div>`;
   const stat = (label, val, color = '#fff') =>
     `<div style="display:flex;flex-direction:column;gap:5px;min-width:64px">
        <span style="font-size:12px;color:#8fa0b8;letter-spacing:2px">${label}</span>
@@ -121,5 +138,6 @@ export function showEnd(win) {
     </div>
     <div style="font-size:14px;color:#8fa0b8;letter-spacing:4px;margin-top:8px">总 分</div>
     <div style="font-size:48px;font-weight:900;font-style:italic;color:#ffd43b;text-shadow:0 2px 16px rgba(0,0,0,.7)">${score.toLocaleString()}</div>
+    ${recordLine}
     <p style="margin-top:22px;font-size:18px;color:#ffd43b;">按 <b style="color:#ffd43b">R</b> 重新开始</p>`;
 }
