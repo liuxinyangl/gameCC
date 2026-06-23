@@ -20,6 +20,7 @@ import {
   CASTER_HP, C_KITE, C_CAST_RANGE, C_WINDUP, C_RECOVER, C_SPEED,
   DASHER_HP, D_RANGE, D_SPEED, D_WINDUP, D_DASH, D_RECOVER, D_DASH_SPEED, D_DMG, PICKUP,
   BRUTE_HP, BR_RANGE, BR_SPEED, BR_WINDUP, BR_ACTIVE, BR_RECOVER, BR_DMG,
+  COMBO_WINDOW,
 } from './config.js';
 
 export const enemies = [];
@@ -177,6 +178,7 @@ export function killEnemy(e) {
   if (e.state === 'dead') return;
   e.state = 'dead'; e.deadTime = 0;
   state.kills++; if (e.isElite) state.elites++;               // Run 统计
+  state.combo++; if (state.combo > state.maxCombo) state.maxCombo = state.combo; state.comboTimer = COMBO_WINDOW;   // 连杀累积
   if (e.bar) e.bar.visible = false;
   if (e === state.lockTarget) state.lockTarget = null;
   spawnBurst(e.mesh.position.x, e.isBoss ? 2.4 : 1.4, e.mesh.position.z,

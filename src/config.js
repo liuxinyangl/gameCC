@@ -26,6 +26,9 @@ export const ULT = { cost: 100, dur: 1.15, range: 6.0, dmg: 52, knock: 16, tickT
 export const HITSTOP = { light: 0.04, heavy: 0.09, exec: 0.13, ult: 0.06 };
 export const SLOWMO_PARRY = 0.22;
 
+// ---- 连杀：窗口内继续击杀则累计，超时清零 ----
+export const COMBO_WINDOW = 3.0;
+
 // ---- 杂兵 ----
 export const M_DETECT = 18, M_ATK_RANGE = 2.3, M_SPEED = 3.5;
 export const M_WINDUP = 0.55, M_STRIKE = 0.18, M_RECOVER = 0.68, M_DMG = 14, M_KNOCK = 4;

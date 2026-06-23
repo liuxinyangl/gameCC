@@ -109,6 +109,15 @@
   #style .sbar { width: 132px; height: 6px; margin: 5px 0 0 auto; background: rgba(0,0,0,.5); border-radius: 3px; overflow: hidden; }
   #style .sbar .f { height: 100%; width: 0; transition: width .15s linear; }
   #style .slabel { font-size: 11px; letter-spacing: 3px; color: #aeb6c4; margin-top: 3px; }
+
+  /* ---- 连杀计数（顶部居中大字）---- */
+  #combo { position: absolute; top: 88px; left: 50%; transform: translateX(-50%); text-align: center; opacity: 0; transition: opacity .25s; pointer-events: none; }
+  #combo.on { opacity: 1; }
+  #combo .cn { display: block; font-size: 54px; font-weight: 900; font-style: italic; line-height: 1; text-shadow: 0 2px 14px rgba(0,0,0,.85); }
+  #combo .cn::before { content: '×'; font-size: 32px; opacity: .8; margin-right: 2px; }
+  #combo .cl { font-size: 12px; letter-spacing: 6px; color: #aeb6c4; }
+  #combo.pop .cn { animation: comboPop .22s ease-out; }
+  @keyframes comboPop { 0% { transform: scale(1.45); } 100% { transform: scale(1); } }
 </style>
 </head>
 <body>
@@ -126,6 +135,7 @@
   <div id="lockTip"></div>
   <div id="quests"></div>
   <div id="style"><div class="sr" id="styleRank">D</div><div class="sbar"><div class="f" id="styleFill"></div></div><div class="slabel">风格</div></div>
+  <div id="combo"><span class="cn" id="comboNum">0</span><span class="cl">连 杀</span></div>
 
   <div id="bossName">暗 影 督 军</div>
   <div id="bossBar"><div class="fill" id="bossFill"></div></div>

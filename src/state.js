@@ -12,6 +12,7 @@ export const state = {
   slowmo: 0,            // 子弹时间：>0 时减速
   // ---- Run 结算统计（重开即 location.reload，自然归零）----
   kills: 0, elites: 0, parries: 0, runTime: 0,
+  combo: 0, maxCombo: 0, comboTimer: 0,   // 连杀（窗口内累积）
 };
 
 // 镜头角度：鼠标(input) 与 锁定(camera) 都会写它

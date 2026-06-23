@@ -19,6 +19,7 @@ const overlay = $('center');
 const ultSlot = $('slotUlt'), healSlot = $('slotHeal'), slotHeavy = $('slotHeavy'), slotDodge = $('slotDodge'), slotParry = $('slotParry');
 const upgradeEl = $('upgrade'), upCardsEl = $('upCards');
 const styleEl = $('style'), styleRankEl = $('styleRank'), styleFill = $('styleFill');
+const comboEl = $('combo'), comboNumEl = $('comboNum');
 
 // 历史最高分（跨会话持久化；localStorage 在隐私模式/file:// 下可能抛异常，故包一层）
 const BEST_KEY = 'shadowtrial.best';
@@ -32,6 +33,7 @@ const setBest = v => { try { localStorage.setItem(BEST_KEY, v); } catch {} };
 }
 
 let questSig = '';
+let lastCombo = 0;
 export function updateHUD() {
   hpFill.style.width = (player.hp / player.maxHp * 100) + '%';
   spFill.style.width = (player.sp / player.maxSp * 100) + '%';
@@ -52,6 +54,14 @@ export function updateHUD() {
     styleRankEl.textContent = sr.letter; styleRankEl.style.color = sr.color;
     styleFill.style.width = (styleProgress() * 100) + '%'; styleFill.style.background = sr.color;
   } else styleEl.classList.remove('on');
+
+  if (state.combo >= 2) {                        // 连杀计数显示（≥2 才出）
+    comboEl.classList.add('on');
+    comboNumEl.textContent = state.combo;
+    comboNumEl.style.color = state.combo >= 15 ? '#ff6bd0' : state.combo >= 8 ? '#ffd24a' : '#fff';
+    if (state.combo !== lastCombo) { comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop'); }   // 每次跳数触发缩放
+  } else comboEl.classList.remove('on');
+  lastCombo = state.combo;
 
   const mAlive = countAliveMinions();
   const sig = state.phase + '|' + state.wave + '|' + mAlive;
@@ -114,7 +124,7 @@ export function showEnd(win) {
   const t = state.runTime, mm = Math.floor(t / 60), ss = Math.floor(t % 60);
   const timeStr = `${mm}:${String(ss).padStart(2, '0')}`;
   // 总分：基础击杀 + 精英 + 弹反 + 评级 + 通关奖励
-  const score = state.kills * 100 + state.elites * 300 + state.parries * 60 + bestStyleLevel() * 400 + (win ? 2000 : 0);
+  const score = state.kills * 100 + state.elites * 300 + state.parries * 60 + state.maxCombo * 50 + bestStyleLevel() * 400 + (win ? 2000 : 0);
   const prevBest = getBest();
   const isRecord = score > prevBest;
   if (isRecord) setBest(score);
@@ -132,6 +142,7 @@ export function showEnd(win) {
     <div style="display:flex;gap:30px;margin:26px 0 10px;flex-wrap:wrap;justify-content:center">
       ${stat('击杀', state.kills)}
       ${stat('精英', state.elites, '#ffd24a')}
+      ${stat('最高连杀', state.maxCombo, '#ff8f5a')}
       ${stat('弹反', state.parries, '#7be8ff')}
       ${stat('最高评级', br.letter, br.color)}
       ${stat('用时', timeStr)}

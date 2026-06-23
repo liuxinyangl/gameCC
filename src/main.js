@@ -31,6 +31,7 @@ function tick() {
 
   if (state.started && locked && !state.ended && state.phase !== 'upgrade') {
     state.runTime += realDt;            // 计时（强化菜单/未开始时不累计）
+    if (state.comboTimer > 0) { state.comboTimer -= realDt; if (state.comboTimer <= 0) state.combo = 0; }   // 连杀超时清零
     updateFlow(realDt);
     updatePlayer(dt, clock.elapsedTime);
     for (const e of enemies) {
