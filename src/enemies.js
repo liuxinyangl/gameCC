@@ -117,17 +117,22 @@ export function spawnBoss() {
   sfx.roar(); addShake(0.5);
 }
 
-// 精英词缀：更壮、更肉、脚下描金光环、必掉双倍拾取（仅改属性与外观，不动任何 AI 逻辑）
+// 精英：更壮、更肉、必掉双倍拾取，并随机带一种词缀（仅改属性/外观，词缀逻辑全走中心化钩子，不动 AI）
+//   shield  护盾  —— 吸收第一次伤害（青环）        ：逼你先破盾
+//   volatile 爆裂 —— 死亡时爆炸，贴身会被炸（橙环） ：逼你留距离/翻滚收尾
 export function makeElite(e) {
   e.isElite = true;
   e.hp = e.maxHp = Math.round(e.maxHp * 1.8);
   e.mesh.scale.multiplyScalar(1.25);
-  e.glowColor = 0xffd24a;                                    // 描金：受击/死亡爆裂染金 → 精英标识
+  e.affix = Math.random() < 0.5 ? 'shield' : 'volatile';
+  if (e.affix === 'shield') e.shield = true;
+  const c = e.affix === 'shield' ? 0x6fd3ff : 0xff6a2a;
+  e.glowColor = c;                                            // 受击/死亡爆裂染上词缀色 → 一眼可辨
   const aura = new THREE.Mesh(
     new THREE.TorusGeometry(0.82, 0.05, 8, 36),
-    new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })
+    new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })
   );
-  aura.rotation.x = Math.PI / 2; aura.position.y = 0.1;       // 脚下悬浮金环
+  aura.rotation.x = Math.PI / 2; aura.position.y = 0.1;       // 脚下悬浮词缀光环
   e.mesh.add(aura);
 }
 
@@ -142,6 +147,13 @@ export function countAliveMinions() {
 // 对敌人造成伤害（含全套打击反馈）。返回是否生效。
 export function damageEnemy(e, dmg, dx, dz, knock, opts = {}) {
   if (e.state === 'dead' || e.state === 'gone' || e.state === 'intro') return false;
+  if (e.shield) {                                            // 护盾词缀：吸收第一次伤害
+    e.shield = false;
+    flash(e.mesh, 0x9fd8ff);
+    spawnBurst(e.mesh.position.x, 1.2, e.mesh.position.z, { count: 14, color: 0x9fd8ff, speed: 6, size: 0.4, life: 0.35 });
+    sfx.parry(); addShake(0.12);
+    return false;
+  }
   let kind = opts.kind || 'normal';
   if (e.isBoss && e.state === 'staggered') { dmg *= 2; kind = 'crit'; }   // 破势处决：双倍
   e.hp -= dmg;
@@ -171,6 +183,16 @@ export function killEnemy(e) {
   if (!e.isBoss) {
     if (e.isElite) { spawnPickup(e.mesh.position.x - 0.4, e.mesh.position.z, 'hp'); spawnPickup(e.mesh.position.x + 0.4, e.mesh.position.z, 'energy'); }   // 精英必掉双倍
     else if (Math.random() < PICKUP.drop) spawnPickup(e.mesh.position.x, e.mesh.position.z, Math.random() < 0.5 ? 'hp' : 'energy');
+  }
+  if (e.affix === 'volatile') {                              // 爆裂词缀：死亡冲击波，贴身（且非无敌帧）会被炸
+    spawnShockwave(e.mesh.position.x, e.mesh.position.z, 3.6, 0xff6a2a);
+    spawnBurst(e.mesh.position.x, 0.6, e.mesh.position.z, { count: 30, color: 0xff6a2a, speed: 10, size: 0.6, life: 0.5, up: 2 });
+    addShake(0.45); sfx.slam();
+    const d = Math.hypot(player.mesh.position.x - e.mesh.position.x, player.mesh.position.z - e.mesh.position.z);
+    if (d < 3.6 && player.invuln <= 0 && player.state !== 'dead') {
+      tmpN.set(player.mesh.position.x - e.mesh.position.x, 0, player.mesh.position.z - e.mesh.position.z).normalize();
+      hitPlayer(15, tmpN);
+    }
   }
   if (e.isBoss) { hideBossUI(); addShake(0.7); pulseBloom(2.2); sfx.exec(); }
 }
