@@ -8,13 +8,17 @@ import { enemies, spawnMinion, spawnCaster, spawnDasher, spawnBrute, spawnBoss, 
 import { toast, banner, showUpgrades, hideUpgrades, hideCleared } from './hud.js';
 import { rollUpgrades, applyUpgrade } from './upgrades.js';
 import { clearProjectiles } from './projectiles.js';
+import { spawnShockwave, spawnBurst } from './effects.js';
 import { randRange } from './util.js';
 
-// 在场地边缘随机散布生成；精英概率随波次与深渊层数上升
+// 在场地边缘随机散布生成；落地处先炸开一个紫色裂隙作为预兆；精英概率随波次与深渊层数上升
 function spawnAround(spawnFn, count) {
   for (let i = 0; i < count; i++) {
     const a = Math.random() * Math.PI * 2, r = randRange(9, 13);
-    spawnFn(Math.cos(a) * r, Math.sin(a) * r - 4);
+    const x = Math.cos(a) * r, z = Math.sin(a) * r - 4;
+    spawnFn(x, z);
+    spawnShockwave(x, z, 2.2, 0x9b4dff);                                   // 生成裂隙环
+    spawnBurst(x, 0.6, z, { count: 8, color: 0x9b4dff, speed: 5, size: 0.4, life: 0.45, up: 2 });
     const eliteChance = Math.min(0.55, 0.08 * (state.wave - 2) + 0.07 * state.abyss);
     if ((state.wave >= 3 || state.abyss > 0) && Math.random() < eliteChance)
       makeElite(enemies[enemies.length - 1]);
@@ -39,10 +43,11 @@ function startAbyssLayer() {
     spawnBoss(1 + 0.5 * (L / 5), '深 渊 守 望 者', `第 ${L} 层 · 强敌`);
     return;
   }
-  spawnAround(spawnMinion, Math.min(9, 3 + Math.floor(L * 0.7)));
-  spawnAround(spawnCaster, Math.min(4, Math.floor((L + 1) / 2)));
-  spawnAround(spawnDasher, Math.min(5, Math.floor((L + 1) / 2)));
-  spawnAround(spawnBrute,  Math.min(3, Math.floor(L / 2)));
+  // 同屏数封顶（峰值约 12）：深处主要靠血量/精英词缀加压，而非无脑堆数量 → 保持可读、不卡帧
+  spawnAround(spawnMinion, Math.min(5, 3 + Math.floor(L * 0.4)));
+  spawnAround(spawnCaster, Math.min(2, Math.floor(L / 4)));
+  spawnAround(spawnDasher, Math.min(3, Math.floor(L / 3)));
+  spawnAround(spawnBrute,  Math.min(2, Math.floor(L / 5)));
   banner('深 渊 余 烬', `第 ${L} 层 · 敌愈强`, 1.8);
 }
 
