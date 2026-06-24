@@ -8,7 +8,7 @@ import { enemies } from './enemies.js';
 import { M_DETECT } from './config.js';
 import { initAudio, toggleMute } from './audio.js';
 import { toast, showPause, hidePause, showEnd } from './hud.js';
-import { pickUpgrade, enterAbyss } from './waves.js';
+import { pickUpgrade, enterAbyss, tryReroll } from './waves.js';
 
 export const keys = {};
 export let locked = false;
@@ -20,10 +20,11 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'KeyM') { toast(toggleMute() ? '🔇 已静音' : '🔊 音效开', 1.0); return; }   // 静音随时可切
   if (!state.started) return;
-  if (state.phase === 'upgrade') {            // 波间强化：仅 1/2/3 生效，其余吞掉
+  if (state.phase === 'upgrade') {            // 波间强化：1/2/3 选择，空格重随，其余吞掉
     if (e.code === 'Digit1') pickUpgrade(0);
     else if (e.code === 'Digit2') pickUpgrade(1);
     else if (e.code === 'Digit3') pickUpgrade(2);
+    else if (e.code === 'Space') { tryReroll(); e.preventDefault(); }
     return;
   }
   if (state.phase === 'cleared') {            // 通关去/留：1 踏入深渊 · 2 收下胜利结算（R 重开仍可用）
@@ -67,6 +68,17 @@ document.addEventListener('mousemove', e => {
   look.yaw -= e.movementX * 0.0025;
   look.pitch = clamp(look.pitch - e.movementY * 0.0025, 0.08, 1.2);
 });
+
+// 已锁定时：滚轮在存活敌人间按距离循环切换锁定目标
+addEventListener('wheel', e => {
+  if (!locked || !state.lockTarget || state.phase === 'upgrade' || state.phase === 'cleared') return;
+  const cand = enemies.filter(x => x.state !== 'dead' && x.state !== 'gone' && x.state !== 'intro');
+  if (cand.length < 2) return;
+  cand.sort((a, b) => a.mesh.position.distanceToSquared(player.mesh.position) - b.mesh.position.distanceToSquared(player.mesh.position));
+  let i = cand.indexOf(state.lockTarget); if (i < 0) i = 0;
+  state.lockTarget = cand[(i + (e.deltaY > 0 ? 1 : -1) + cand.length) % cand.length];
+  e.preventDefault();
+}, { passive: false });
 
 export function toggleLock() {
   if (state.lockTarget) { state.lockTarget = null; return; }

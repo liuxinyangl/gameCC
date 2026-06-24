@@ -4,7 +4,7 @@
 // =============================================================
 import { state } from './state.js';
 import { WAVES } from './config.js';
-import { enemies, spawnMinion, spawnCaster, spawnDasher, spawnBrute, spawnBoss, countAliveMinions, makeElite } from './enemies.js';
+import { enemies, spawnMinion, spawnCaster, spawnDasher, spawnBrute, spawnBoss, countAliveMinions, countAliveAll, makeElite } from './enemies.js';
 import { toast, banner, showUpgrades, hideUpgrades, hideCleared } from './hud.js';
 import { rollUpgrades, applyUpgrade } from './upgrades.js';
 import { clearProjectiles } from './projectiles.js';
@@ -32,13 +32,27 @@ export function startWave(n) {
 }
 
 // 深渊余烬：通关后逐层递增的无尽波次（数量随层上升，血量在 enemies.js 按层 scale）
+//   每 5 层是 Boss 轮——降临一只按层缩放的「深渊守望者」
 function startAbyssLayer() {
   const L = state.abyss;
+  if (L % 5 === 0) {
+    spawnBoss(1 + 0.5 * (L / 5), '深 渊 守 望 者', `第 ${L} 层 · 强敌`);
+    return;
+  }
   spawnAround(spawnMinion, Math.min(9, 3 + Math.floor(L * 0.7)));
   spawnAround(spawnCaster, Math.min(4, Math.floor((L + 1) / 2)));
   spawnAround(spawnDasher, Math.min(5, Math.floor((L + 1) / 2)));
   spawnAround(spawnBrute,  Math.min(3, Math.floor(L / 2)));
   banner('深 渊 余 烬', `第 ${L} 层 · 敌愈强`, 1.8);
+}
+
+// 强化界面：每次刷新给 1 次免费重随
+let rerollsLeft = 0;
+function presentUpgrades() { rerollsLeft = 1; showUpgrades(rollUpgrades()); }
+export function tryReroll() {
+  if (state.phase !== 'upgrade' || rerollsLeft <= 0) return;
+  rerollsLeft--;
+  showUpgrades(rollUpgrades());
 }
 // 通关选择「踏入深渊」→ 进入无尽第 1 层
 export function enterAbyss() {
@@ -51,14 +65,16 @@ export function enterAbyss() {
 let bossTimer = 0;
 export function updateFlow(dt) {
   if (state.phase === 'wave') {
-    if (countAliveMinions() === 0) {
+    // 深渊含 Boss 轮 → 清场要算上 Boss；主线仍只看杂兵（Boss 走独立 boss 阶段）
+    const cleared = state.abyss > 0 ? countAliveAll() === 0 : countAliveMinions() === 0;
+    if (cleared) {
       clearProjectiles();                               // 清掉空中残留弹幕，避免穿越菜单/Boss 登场后伤人
       if (state.abyss > 0) {                            // 深渊中：清层 → 强化 → 下一层
-        state.phase = 'upgrade'; state.lockTarget = null; showUpgrades(rollUpgrades());
+        state.phase = 'upgrade'; state.lockTarget = null; presentUpgrades();
       } else if (state.wave >= WAVES.length) {          // 主线波次清空 → 召唤 Boss
         state.phase = 'bossPending'; bossTimer = 2.0; toast('强 敌 降 临…', 2.0); state.lockTarget = null;
       } else {                                          // 进入波间强化选择
-        state.phase = 'upgrade'; state.lockTarget = null; showUpgrades(rollUpgrades());
+        state.phase = 'upgrade'; state.lockTarget = null; presentUpgrades();
       }
     }
   } else if (state.phase === 'bossPending') {

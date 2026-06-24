@@ -113,7 +113,7 @@ export function updateHUD() {
   }
 }
 
-export function showBossUI() { bossNameEl.style.display = 'block'; bossBarEl.style.display = 'block'; postureBarEl.style.display = 'block'; }
+export function showBossUI(name) { if (name) bossNameEl.textContent = name; bossNameEl.style.display = 'block'; bossBarEl.style.display = 'block'; postureBarEl.style.display = 'block'; }
 export function hideBossUI() { bossNameEl.style.display = 'none'; bossBarEl.style.display = 'none'; postureBarEl.style.display = 'none'; }
 export function updateBossBar(hpRatio, postureRatio, broken) {
   bossFill.style.width = Math.max(0, hpRatio * 100) + '%';

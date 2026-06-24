@@ -94,7 +94,7 @@ export function spawnBrute(x, z) {
   enemies.push(e);
 }
 
-export function spawnBoss() {
+export function spawnBoss(hpScale = 1, name = '暗 影 督 军', sub = '试炼最终守关者') {
   const mesh = buildDemon();
   mesh.scale.setScalar(2.0);
   // 悬浮能量光环
@@ -106,16 +106,17 @@ export function spawnBoss() {
   mesh.position.set(0, 0, -16);
   scene.add(mesh);
 
+  const hp = Math.round(BOSS_HP * hpScale);
   boss = {
     mesh, aura, glowColor: COLORS.bossGlow,
-    hp: BOSS_HP, maxHp: BOSS_HP, posture: 0, maxPosture: BOSS_MAX_POSTURE,
+    hp, maxHp: hp, posture: 0, maxPosture: BOSS_MAX_POSTURE,
     heading: 0, state: 'intro', timer: 0, introTime: 0,
     move: null, queue: [], moveDir: new THREE.Vector3(), didHit: false,
     vel: new THREE.Vector3(), radius: 1.1, deadTime: 0, phase2: false, isBoss: true,
   };
   enemies.push(boss);
-  showBossUI();
-  banner('暗 影 督 军', '试炼最终守关者', 2.2);
+  showBossUI(name);
+  banner(name, sub, 2.2);
   sfx.roar(); addShake(0.5);
 }
 
@@ -148,6 +149,12 @@ export function countAliveMinions() {
 export function pruneEnemies() {
   for (let i = enemies.length - 1; i >= 0; i--)
     if (enemies[i].state === 'gone') enemies.splice(i, 1);
+}
+// 存活敌人总数（含 Boss）——深渊清场判定用（深渊每 5 层是 Boss 轮）
+export function countAliveAll() {
+  let n = 0;
+  for (const e of enemies) if (e.state !== 'dead' && e.state !== 'gone') n++;
+  return n;
 }
 
 // 对敌人造成伤害（含全套打击反馈）。返回是否生效。
@@ -507,16 +514,18 @@ function bossTryHit(b, m) {
 }
 
 export function updateBoss(b, dt) {
+  if (b.state === 'gone') return;
   if (b.aura) { b.aura.rotation.z += dt * 1.5; b.aura.scale.setScalar(1 + Math.sin(performance.now() * 0.004) * 0.12); }
   if (b.mesh.userData.cape) b.mesh.userData.cape.rotation.x = 0.18 + Math.sin(performance.now() * 0.003) * 0.08;
 
   if (b.state === 'dead') {
     b.deadTime += dt;
     b.mesh.rotation.x = Math.min(b.deadTime * 2, Math.PI / 2);
-    b.mesh.position.y = -b.deadTime * 0.5;
-    if (b.deadTime > 2.2 && !state.ended && !state.bossDown) {         // 一次性：bossDown 置位后不再重复触发（深渊中 boss 仍留在数组）
-      state.bossDown = true; state.phase = 'cleared'; showCleared();   // 通关 → 去/留选择（结算 or 深渊）
+    b.mesh.position.y = Math.max(-1.4, -b.deadTime * 0.5);             // 下沉到底就停，别无限往下掉
+    if (b.deadTime > 2.2 && !state.ended && !state.bossDown) {         // 一次性：bossDown 置位后不再重复触发
+      state.bossDown = true; state.phase = 'cleared'; showCleared();   // 首杀 Boss → 去/留选择（结算 or 深渊）
     }
+    if (b.deadTime > 2.4) { scene.remove(b.mesh); b.state = 'gone'; }  // 动画收尾 → 回收，交给 pruneEnemies 清出数组
     return;
   }
   if (b.state === 'intro') {
