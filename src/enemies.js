@@ -11,7 +11,7 @@ import { spawnPickup } from './pickups.js';
 import { lerpAngle } from './util.js';
 import { state, addShake, hitStop } from './state.js';
 import { player, hitPlayer, parryActive, parrySuccess } from './player.js';
-import { toast, banner, showBossUI, hideBossUI, updateBossBar, showEnd, flashScreen } from './hud.js';
+import { toast, banner, showBossUI, hideBossUI, updateBossBar, showEnd, showCleared, flashScreen } from './hud.js';
 import { sfx } from './audio.js';
 import {
   MINION_HP, M_DETECT, M_ATK_RANGE, M_SPEED, M_WINDUP, M_STRIKE, M_RECOVER, M_DMG,
@@ -20,20 +20,21 @@ import {
   CASTER_HP, C_KITE, C_CAST_RANGE, C_WINDUP, C_RECOVER, C_SPEED,
   DASHER_HP, D_RANGE, D_SPEED, D_WINDUP, D_DASH, D_RECOVER, D_DASH_SPEED, D_DMG, PICKUP,
   BRUTE_HP, BR_RANGE, BR_SPEED, BR_WINDUP, BR_ACTIVE, BR_RECOVER, BR_DMG,
-  COMBO_WINDOW,
+  COMBO_WINDOW, ENERGY_MAX,
 } from './config.js';
 
 export const enemies = [];
 let boss = null;
 const tmp = new THREE.Vector3();
 const tmpN = new THREE.Vector3();   // 归一化方向复用（避免热循环每帧 clone）
+const hpScale = () => 1 + 0.30 * state.abyss;   // 深渊余烬：每层敌人血量 +30%
 
 export function spawnMinion(x, z) {
   const e = {
     mesh: buildImp(),
     bar: buildHealthBar(1.1, 2.7),
     glowColor: COLORS.minionGlow,
-    hp: MINION_HP, maxHp: MINION_HP,
+    hp: Math.round(MINION_HP * hpScale()), maxHp: Math.round(MINION_HP * hpScale()),
     heading: 0, state: 'idle', timer: 0,
     vel: new THREE.Vector3(), radius: 0.5, deadTime: 0, isBoss: false,
   };
@@ -49,7 +50,7 @@ export function spawnCaster(x, z) {
     mesh: buildCaster(),
     bar: buildHealthBar(1.1, 2.7),
     glowColor: COLORS.casterGlow,
-    hp: CASTER_HP, maxHp: CASTER_HP,
+    hp: Math.round(CASTER_HP * hpScale()), maxHp: Math.round(CASTER_HP * hpScale()),
     heading: 0, state: 'kite', timer: 0,
     vel: new THREE.Vector3(), radius: 0.5, deadTime: 0, isBoss: false, isCaster: true,
   };
@@ -65,7 +66,7 @@ export function spawnDasher(x, z) {
     mesh: buildDasher(),
     bar: buildHealthBar(1.0, 2.6),
     glowColor: COLORS.dasherGlow,
-    hp: DASHER_HP, maxHp: DASHER_HP,
+    hp: Math.round(DASHER_HP * hpScale()), maxHp: Math.round(DASHER_HP * hpScale()),
     heading: 0, state: 'chase', timer: 0, didHit: false,
     dashDir: new THREE.Vector3(),
     vel: new THREE.Vector3(), radius: 0.45, deadTime: 0, isBoss: false, isDasher: true,
@@ -82,7 +83,7 @@ export function spawnBrute(x, z) {
     mesh: buildBrute(),
     bar: buildHealthBar(1.3, 3.0),
     glowColor: COLORS.bruteGlow,
-    hp: BRUTE_HP, maxHp: BRUTE_HP,
+    hp: Math.round(BRUTE_HP * hpScale()), maxHp: Math.round(BRUTE_HP * hpScale()),
     heading: 0, state: 'chase', timer: 0, didHit: false,
     vel: new THREE.Vector3(), radius: 0.7, deadTime: 0, isBoss: false, isBrute: true,
   };
@@ -137,12 +138,16 @@ export function makeElite(e) {
   e.mesh.add(aura);
 }
 
-export const aliveEnemies = () => enemies.filter(e => e.state !== 'dead' && e.state !== 'gone');
 // 存活杂兵数（每帧被 main/hud 调用，用计数循环避免 filter 建数组）
 export function countAliveMinions() {
   let n = 0;
   for (const e of enemies) if (!e.isBoss && e.state !== 'dead' && e.state !== 'gone') n++;
   return n;
+}
+// 移除已彻底消失（gone）的敌人：否则数组只增不减，所有逐帧命中/锁定循环都在空转死对象
+export function pruneEnemies() {
+  for (let i = enemies.length - 1; i >= 0; i--)
+    if (enemies[i].state === 'gone') enemies.splice(i, 1);
 }
 
 // 对敌人造成伤害（含全套打击反馈）。返回是否生效。
@@ -179,6 +184,8 @@ export function killEnemy(e) {
   e.state = 'dead'; e.deadTime = 0;
   state.kills++; if (e.isElite) state.elites++;               // Run 统计
   state.combo++; if (state.combo > state.maxCombo) state.maxCombo = state.combo; state.comboTimer = COMBO_WINDOW;   // 连杀累积
+  if (player.killHeal)   player.hp = Math.min(player.maxHp, player.hp + player.killHeal);          // 「处决精通」击杀回血
+  if (player.killEnergy) player.energy = Math.min(ENERGY_MAX, player.energy + player.killEnergy);  // 「处决精通」击杀回能
   if (e.bar) e.bar.visible = false;
   if (e === state.lockTarget) state.lockTarget = null;
   spawnBurst(e.mesh.position.x, e.isBoss ? 2.4 : 1.4, e.mesh.position.z,
@@ -507,7 +514,9 @@ export function updateBoss(b, dt) {
     b.deadTime += dt;
     b.mesh.rotation.x = Math.min(b.deadTime * 2, Math.PI / 2);
     b.mesh.position.y = -b.deadTime * 0.5;
-    if (b.deadTime > 2.2 && !state.ended) showEnd(true);
+    if (b.deadTime > 2.2 && !state.ended && !state.bossDown) {         // 一次性：bossDown 置位后不再重复触发（深渊中 boss 仍留在数组）
+      state.bossDown = true; state.phase = 'cleared'; showCleared();   // 通关 → 去/留选择（结算 or 深渊）
+    }
     return;
   }
   if (b.state === 'intro') {

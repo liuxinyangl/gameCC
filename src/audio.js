@@ -3,6 +3,9 @@
 // =============================================================
 let ctx = null;
 let master = null;
+const BASE_VOL = 0.45;
+let muted = false;
+try { muted = localStorage.getItem('shadowtrial.muted') === '1'; } catch {}   // 跨会话记住静音
 
 export function initAudio() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
@@ -10,8 +13,17 @@ export function initAudio() {
   if (!AC) return;
   ctx = new AC();
   master = ctx.createGain();
-  master.gain.value = 0.45;
+  master.gain.value = muted ? 0 : BASE_VOL;
   master.connect(ctx.destination);
+}
+
+export function isMuted() { return muted; }
+// M 键切换静音；持久化到 localStorage，下次进来记得
+export function toggleMute() {
+  muted = !muted;
+  if (master) master.gain.value = muted ? 0 : BASE_VOL;
+  try { localStorage.setItem('shadowtrial.muted', muted ? '1' : '0'); } catch {}
+  return muted;
 }
 
 // 单个振荡器音 + 指数包络

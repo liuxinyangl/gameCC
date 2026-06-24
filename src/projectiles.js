@@ -12,6 +12,9 @@ import { sfx } from './audio.js';
 const projectiles = [];
 const _hitDir = new THREE.Vector3();
 
+// 供边缘危险指示读取（只读，不持有）
+export function activeProjectiles() { return projectiles; }
+
 // 波次结束时清场：避免飞行中的弹幕被强化菜单冻住、下一波又复活伤人
 export function clearProjectiles() {
   for (const p of projectiles) { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); }

@@ -4,8 +4,10 @@
 export const state = {
   started: false,
   ended: false,
-  phase: 'wave',        // wave | upgrade | bossPending | boss
+  phase: 'wave',        // wave | upgrade | bossPending | boss | cleared（通关后的去留选择）
   wave: 0,              // 当前波次（从 1 起）
+  abyss: 0,             // 深渊余烬层数（通关后无尽模式；0 = 未进入）
+  bossDown: false,      // 是否已击败 Boss（深渊中阵亡也算达成试炼）
   lockTarget: null,
   shake: 0,
   hitStop: 0,           // 命中顿帧：>0 时几乎冻结战斗

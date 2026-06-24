@@ -113,10 +113,10 @@ export function setBar(bar, ratio) {
 
 // ---- 受击闪光 / 出招染色（作用于有 emissive 的卡通材质）----
 export function flash(group, color = 0xff3030) {
+  const fresh = !(group.userData._flash > 0);   // 仅在“不处于闪光中”时重缓存当前 emissive（含 tintArm 染色），复原才不会串成残留色
   group.traverse(o => {
     if (o.isMesh && o.material.emissive) {
-      o.userData._e ??= o.material.emissive.getHex();
-      o.userData._ei ??= o.material.emissiveIntensity;
+      if (fresh) { o.userData._e = o.material.emissive.getHex(); o.userData._ei = o.material.emissiveIntensity; }
       o.material.emissive.setHex(color); o.material.emissiveIntensity = 1.6;
     }
   });

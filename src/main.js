@@ -10,13 +10,14 @@ import { updateEffects } from './effects.js';
 import { state, timeScale, tickTimers } from './state.js';
 import { locked } from './input.js';
 import { player, updatePlayer } from './player.js';
-import { enemies, updateMinion, updateCaster, updateDasher, updateBrute, updateBoss } from './enemies.js';
+import { enemies, updateMinion, updateCaster, updateDasher, updateBrute, updateBoss, pruneEnemies } from './enemies.js';
 import { updateCamera, updateLockMark } from './camera.js';
 import { updateHUD, updateToast, updateBanner } from './hud.js';
 import { updateProjectiles } from './projectiles.js';
 import { startWave, updateFlow } from './waves.js';
 import { updateStyle } from './style.js';
 import { updatePickups } from './pickups.js';
+import { updateIndicators } from './indicators.js';
 
 // ---- 关卡流程在 waves.js；这里点燃第一波 ----
 startWave(1);
@@ -29,7 +30,7 @@ function tick() {
   tickTimers(realDt);                 // 顿帧/子弹时间计时器走真实时间
   const dt = realDt * timeScale();    // 战斗逻辑用缩放时间
 
-  if (state.started && locked && !state.ended && state.phase !== 'upgrade') {
+  if (state.started && locked && !state.ended && state.phase !== 'upgrade' && state.phase !== 'cleared') {
     state.runTime += realDt;            // 计时（强化菜单/未开始时不累计）
     if (state.comboTimer > 0) { state.comboTimer -= realDt; if (state.comboTimer <= 0) state.combo = 0; }   // 连杀超时清零
     updateFlow(realDt);
@@ -41,6 +42,7 @@ function tick() {
       else if (e.isBrute) updateBrute(e, dt);
       else updateMinion(e, dt);
     }
+    pruneEnemies();                     // 回收 gone 的敌人，避免数组无限增长
     updateProjectiles(dt);
     updateStyle(dt);
     updatePickups(dt);
@@ -54,6 +56,7 @@ function tick() {
   updateToast(realDt);
   updateBanner(realDt);
   updateHUD();
+  updateIndicators();                 // 画面外威胁箭头（镜头更新后）
   decayBloom(realDt);
   render();
 }

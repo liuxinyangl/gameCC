@@ -11,7 +11,7 @@ import { lerpAngle } from './util.js';
 import { state, look, addShake, hitStop, slowmo } from './state.js';
 import { locked, keys } from './input.js';
 import { enemies, damageEnemy, staggerBoss } from './enemies.js';
-import { showEnd, flashScreen } from './hud.js';
+import { showEnd, flashScreen, hurtFlash } from './hud.js';
 import { sfx } from './audio.js';
 import { addStyle, loseStyle, styleEnergyMult } from './style.js';
 import {
@@ -38,6 +38,9 @@ export const player = {
   // 肉鸽强化累积（波间 3 选 1）
   lifesteal: 0, critChance: 0, critMult: 1.8, energyMul: 1, rangeMul: 1, dodgeEnergy: 0,
   speedMul: 1, dmgReduction: 0,
+  // 钩子型强化：击杀回馈 / 弹反震爆 / 翻滚震击 / 狂战 / 药剂 / 大招减费 / 耐力回复
+  killHeal: 0, killEnergy: 0, parryNova: 0, dodgeNova: 0, berserkDmg: 0, healBonus: 0,
+  ultCost: ULT.cost, spRegenMul: 1,
   radius: 0.5,
 };
 player.mesh.position.set(0, 0, 8);
@@ -93,6 +96,10 @@ export function tryDodge() {
   player.vel.copy(dir.normalize().multiplyScalar(DODGE_SPEED));
   spawnAfterimage(player.mesh, COLORS.playerGlow); sfx.dodge();
   if (player.dodgeEnergy) gainEnergy(player.dodgeEnergy);   // 「疾影」强化：翻滚回能
+  if (player.dodgeNova) {                                   // 「翻滚震击」强化：脚下冲击波
+    spawnShockwave(player.mesh.position.x, player.mesh.position.z, 4, 0x7fe0ff);
+    radialHit(3.4, player.dodgeNova, 9); addShake(0.18); sfx.slam();
+  }
 }
 export function tryHeal() {
   if (!locked || player.state === 'dead' || busy() || player.state === 'attack' || player.state === 'heavy' || player.state === 'parry') return;
@@ -106,7 +113,7 @@ export function tryParry() {
 }
 export function tryUltimate() {
   if (!locked || player.state === 'dead' || busy() || player.state === 'attack' || player.state === 'heavy' || player.state === 'parry') return;
-  if (player.energy < ULT.cost) return;
+  if (player.energy < player.ultCost) return;   // 「影能大师」降低大招门槛
   player.energy = 0; player.state = 'ult'; player.ultTime = 0; player.ultTicks.clear();
   player.invuln = ULT.dur + 0.15; look.fovTarget = 72;
   sfx.ult(); addShake(0.5); pulseBloom(2.2); flashScreen('#7fe0ff', 0.5);
@@ -122,6 +129,10 @@ export function parryReward() {
   slowmo(SLOWMO_PARRY); addShake(0.4); sfx.parry(); pulseBloom(1.7); flashScreen('#ffffff', 0.32);
   player.sp = Math.min(player.maxSp, player.sp + 12); gainEnergy(ENERGY_GAIN.parry);
   addStyle(18); state.parries++;   // 弹反给大量风格分 + 计入 Run 统计
+  if (player.parryNova) {          // 「弹反震爆」强化：弹反成功时对周围炸开
+    spawnShockwave(player.mesh.position.x, player.mesh.position.z, 5, 0xfff2a8);
+    radialHit(4.6, player.parryNova, 10);
+  }
 }
 // 被近战命中时若处于格挡窗口 → 弹反成功（破势 / 打断）
 export function parrySuccess(e) {
@@ -135,6 +146,7 @@ export function parrySuccess(e) {
 
 // 玩家被命中
 export function hitPlayer(dmg, fromDir) {
+  if (state.abyss > 0) dmg *= 1 + 0.12 * state.abyss;   // 深渊余烬：敌人伤害逐层提升
   player.hp -= dmg * (1 - player.dmgReduction);   // 「守势」强化减伤
 
   player.vel.copy(fromDir).multiplyScalar(5).negate();
@@ -144,7 +156,7 @@ export function hitPlayer(dmg, fromDir) {
     ud.torso.rotation.x = 0;
     ud.legL.rotation.x = ud.legR.rotation.x = 0;
   }
-  flash(player.mesh, 0xff2020); addShake(0.34); hitStop(0.05); sfx.hurt(); loseStyle();
+  flash(player.mesh, 0xff2020); addShake(0.34); hitStop(0.05); sfx.hurt(); loseStyle(); hurtFlash();
   spawnBurst(player.mesh.position.x, 1.2, player.mesh.position.z, { count: 10, color: 0xff3030, speed: 5, size: 0.4, life: 0.4 });
   gainEnergy(ENERGY_GAIN.hurt);
   if (player.hp <= 0) { player.hp = 0; player.state = 'dead'; showEnd(false); }
@@ -162,6 +174,7 @@ function meleeHit(range, arc, dmg, knock, stagger, energyType, fx) {
     if (tmp.x * fxh + tmp.z * fz < Math.cos(arc)) continue;
     player.atkHit.add(e);
     let dmgOut = dmg; const opts = { stagger, ...fx };
+    if (player.berserkDmg && player.hp < player.maxHp * 0.35) dmgOut *= (1 + player.berserkDmg);   // 「狂战之怒」：残血增伤
     if (Math.random() < player.critChance) { dmgOut *= player.critMult; opts.kind = 'crit'; }   // 暴击
     if (damageEnemy(e, dmgOut, fxh, fz, knock, opts)) {
       gainEnergy(ENERGY_GAIN[energyType]);
@@ -193,7 +206,7 @@ export function updatePlayer(dt, t) {
     player.healTime += dt;
     ud.torso.rotation.x = 0.4 * Math.sin(player.healTime / HEAL_DURATION * Math.PI);
     if (player.healTime >= HEAL_DURATION) {
-      player.hp = Math.min(player.maxHp, player.hp + HEAL_AMOUNT);
+      player.hp = Math.min(player.maxHp, player.hp + HEAL_AMOUNT + player.healBonus);   // 「强效药剂」增量
       spawnBurst(player.mesh.position.x, 1.2, player.mesh.position.z, { count: 18, color: 0x69ff9c, speed: 3, size: 0.45, life: 0.6, gravity: -2, up: 2 });
       player.state = 'idle'; ud.torso.rotation.x = 0;
     }
@@ -288,7 +301,7 @@ export function updatePlayer(dt, t) {
   resolveCollisions(player.mesh.position, player.radius);
 
   if (player.state !== 'dodge' && !(keys['ShiftLeft'] && moveDir().lengthSq() > 0.01))
-    player.sp = Math.min(player.maxSp, player.sp + 28 * dt);
+    player.sp = Math.min(player.maxSp, player.sp + 28 * player.spRegenMul * dt);   // 「不竭」加速回复
   player.invuln = Math.max(0, player.invuln - dt);
 
   look.fovTarget = player.state === 'ult' ? 72 : (player._sprinting ? 62 : 55);

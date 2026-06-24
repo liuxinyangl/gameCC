@@ -74,6 +74,13 @@
   .dmg.crit { color: #ffe066; font-size: 37px; text-shadow: 0 0 14px rgba(255,200,40,.9),0 2px 6px #000; }
   #flash { position: fixed; inset: 0; pointer-events: none; background: #fff; opacity: 0; }
   #vignette { position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 220px 64px rgba(0,0,0,.72); }
+  /* 危险暗角：受击红闪脉冲 + 低血常驻心跳，靠 JS 调 opacity 驱动 */
+  #dangerVig { position: fixed; inset: 0; pointer-events: none; opacity: 0; box-shadow: inset 0 0 150px 46px rgba(220,22,34,.9); }
+  /* 画面外威胁箭头：边缘三角形（边框法），方向/颜色由 JS 设置 */
+  #edgeWarn { position: fixed; inset: 0; pointer-events: none; }
+  #edgeWarn .warn { position: absolute; width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent;
+                    border-bottom: 15px solid #ff5a5a; filter: drop-shadow(0 0 5px currentColor); animation: warnPulse .8s ease-in-out infinite; }
+  @keyframes warnPulse { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
 
   /* ---- 开始 / 结束 ---- */
   #center { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -102,6 +109,32 @@
   #upgrade .tip { margin-top: 20px; font-size: 13px; opacity: .8; }
   #upgrade .tip b { color: #ffd43b; }
 
+  /* ---- 暂停菜单（与开始界面区分）---- */
+  #pause { position: fixed; inset: 0; z-index: 25; display: flex; flex-direction: column; align-items: center; justify-content: center;
+           background: radial-gradient(ellipse at center, rgba(6,6,14,.74), rgba(2,2,6,.93)); color: #fff; text-align: center; cursor: pointer; }
+  #pause.hidden { display: none; }
+  #pause h1 { font-size: 46px; letter-spacing: 14px; margin-bottom: 8px; text-shadow: 0 0 26px rgba(90,140,255,.5),0 4px 16px #000; }
+  #pause .sub { font-size: 13px; letter-spacing: 4px; color: #8fa0b8; margin-bottom: 22px; }
+  #pause .keys { font-size: 13.5px; opacity: .92; line-height: 2.05; }
+  #pause .keys b { color: #ffd43b; }
+  #pause .aud { margin-top: 18px; font-size: 13px; color: #9fb0c8; letter-spacing: 1px; }
+  #pause .go { margin-top: 20px; font-size: 17px; color: #ffd43b; }
+  #pause .go b { color: #ffe066; }
+
+  /* ---- 通关后：去/留选择（踏入深渊 or 收下胜利）---- */
+  #cleared { position: fixed; inset: 0; z-index: 26; display: flex; flex-direction: column; align-items: center; justify-content: center;
+             background: radial-gradient(ellipse at center, rgba(22,8,32,.72), rgba(2,2,6,.94)); color: #fff; text-align: center; }
+  #cleared.hidden { display: none; }
+  #cleared .big { font-size: 54px; letter-spacing: 12px; font-weight: 800; color: #ffe066; text-shadow: 0 0 30px rgba(255,210,80,.6),0 4px 16px #000; margin-bottom: 10px; }
+  #cleared > p { font-size: 14.5px; opacity: .85; margin-bottom: 26px; max-width: 560px; line-height: 1.6; }
+  #cleared .opts { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+  #cleared .opt { width: 232px; padding: 20px 18px; border-radius: 14px; background: linear-gradient(160deg,#1a2034,#0b0e1a); border: 2px solid #3a4a6a; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+  #cleared .opt .ok { font-size: 13px; letter-spacing: 1px; color: #5bd0ff; font-weight: 700; }
+  #cleared .opt .on2 { font-size: 22px; font-weight: 800; margin: 8px 0 6px; }
+  #cleared .opt .od { font-size: 12.5px; color: #9fb0c8; line-height: 1.55; }
+  #cleared .opt.abyss { border-color: #8b3bd6; } #cleared .opt.abyss .on2 { color: #d59bff; }
+  #cleared .opt.victory .on2 { color: #ffe066; }
+
   /* ---- 风格评级 ---- */
   #style { position: absolute; top: 150px; right: 24px; text-align: right; opacity: 0; transition: opacity .3s; }
   #style.on { opacity: 1; }
@@ -118,6 +151,16 @@
   #combo .cl { font-size: 12px; letter-spacing: 6px; color: #aeb6c4; }
   #combo.pop .cn { animation: comboPop .22s ease-out; }
   @keyframes comboPop { 0% { transform: scale(1.45); } 100% { transform: scale(1); } }
+
+  /* ---- 构筑面板（左下：已选强化，图标 + 叠加层数）---- */
+  #build { position: absolute; bottom: 16px; left: 16px; opacity: 0; transition: opacity .3s; max-width: 232px; }
+  #build.on { opacity: 1; }
+  #build .bhead { font-size: 10px; letter-spacing: 3px; color: #8090a8; margin-bottom: 6px; text-shadow: 0 1px 2px #000; }
+  #build .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { position: relative; width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+          background: linear-gradient(160deg,#1a2034,#0b0e1a); border: 1px solid #34507a; box-shadow: inset 0 0 8px rgba(0,0,0,.5), 0 1px 3px #000; }
+  .chip .ci { font-size: 16px; filter: drop-shadow(0 1px 1px #000); }
+  .chip .cx { position: absolute; bottom: -4px; right: -4px; font-size: 9px; font-weight: 700; color: #69ff9c; background: #103018; border: 1px solid #2a6; border-radius: 4px; padding: 0 2px; }
 </style>
 </head>
 <body>
@@ -136,6 +179,7 @@
   <div id="quests"></div>
   <div id="style"><div class="sr" id="styleRank">D</div><div class="sbar"><div class="f" id="styleFill"></div></div><div class="slabel">风格</div></div>
   <div id="combo"><span class="cn" id="comboNum">0</span><span class="cl">连 杀</span></div>
+  <div id="build"><div class="bhead">构 筑</div><div class="chips" id="buildChips"></div></div>
 
   <div id="bossName">暗 影 督 军</div>
   <div id="bossBar"><div class="fill" id="bossFill"></div></div>
@@ -156,11 +200,33 @@
 <div id="dmgLayer"></div>
 <div id="flash"></div>
 <div id="vignette"></div>
+<div id="dangerVig"></div>
+<div id="edgeWarn"></div>
 
 <div id="upgrade">
   <h2>选 择 强 化</h2>
   <div id="upCards"></div>
   <div class="tip">按 <b>1 / 2 / 3</b> 选择</div>
+</div>
+
+<div id="pause" class="hidden">
+  <h1>暂 停</h1>
+  <div class="sub">试 炼 暂 歇</div>
+  <div class="keys">
+    <b>WASD</b> 移动 · <b>鼠标</b> 视角 · <b>左键/J</b> 连击 · <b>K</b> 重击<br>
+    <b>空格</b> 翻滚 · <b>右键/Q</b> 弹反 · <b>E</b> 影斩 · <b>Shift</b> 冲刺 · <b>F</b> 回血 · <b>Tab</b> 锁定
+  </div>
+  <p class="aud" id="pauseAudio"></p>
+  <p class="go">▶ 点击屏幕 / 按 <b>P</b> 继续　·　按 <b>R</b> 重新开始</p>
+</div>
+
+<div id="cleared" class="hidden">
+  <div class="big">试 炼 达 成</div>
+  <p>暗影督军已被击溃。是收下这份荣耀，还是踏入更深的黑暗？</p>
+  <div class="opts">
+    <div class="opt abyss"><div class="ok">[1]</div><div class="on2">踏入深渊余烬</div><div class="od">无尽逐层挑战 · 敌愈强 · 分数继续累积</div></div>
+    <div class="opt victory"><div class="ok">[2]</div><div class="on2">收下胜利</div><div class="od">结束试炼 · 结算战绩与评级</div></div>
+  </div>
 </div>
 
 <div id="center">
@@ -169,7 +235,8 @@
   <div class="keys">
     <b>WASD</b> 移动 · <b>鼠标</b> 视角 · <b>左键/J</b> 三连击 · <b>K</b> 重击（破防）<br>
     <b>空格</b> 翻滚（无敌帧 + 残影）· <b>右键/Q</b> 弹反（攒"势"→破势处决）· <b>Tab</b> 锁定<br>
-    <b>E</b> 大招「影斩」（能量满时范围旋斩）· <b>Shift</b> 冲刺 · <b>F</b> 回血 · <b>R</b> 重开
+    <b>E</b> 大招「影斩」（能量满时范围旋斩）· <b>Shift</b> 冲刺 · <b>F</b> 回血<br>
+    <b>P</b> 暂停 · <b>M</b> 静音 · <b>R</b> 重开
   </div>
   <p id="bestLine" style="margin-top:22px;font-size:15px;color:#ffd24a;letter-spacing:2px;display:none;"></p>
   <p style="margin-top:14px;font-size:18px;color:#ffd43b;">▶ 点击屏幕开始</p>
