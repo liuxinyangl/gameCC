@@ -1,7 +1,7 @@
 // =============================================================
 //  input.js — 键鼠 / 指针锁定 / 锁定切换 / 首次交互启动音频
 // =============================================================
-import { state, look } from './state.js';
+import { state, look, setShakeScale, getShakeScale } from './state.js';
 import { clamp } from './util.js';
 import { player, tryLightAttack, tryHeavyAttack, tryDodge, tryHeal, tryParry, tryUltimate } from './player.js';
 import { enemies } from './enemies.js';
@@ -16,10 +16,45 @@ export let locked = false;
 const canvas = document.getElementById('game');
 const overlay = document.getElementById('center');
 
+// 鼠标视角灵敏度（持久化，[ / ] 调）
+let sens = 1;
+try { sens = Math.min(2.5, Math.max(0.3, +localStorage.getItem('shadowtrial.sens') || 1)); } catch {}
+function adjustSens(d) {
+  sens = Math.min(2.5, Math.max(0.3, +(sens + d).toFixed(2)));
+  try { localStorage.setItem('shadowtrial.sens', sens); } catch {}
+  toast(`鼠标灵敏度 ${sens.toFixed(2)}×`, 1.0);
+}
+
+// 难度（开始界面 1/2/3 选，记忆上次）
+function setDifficulty(i) {
+  state.difficulty = i;
+  try { localStorage.setItem('shadowtrial.diff', i); } catch {}
+  document.querySelectorAll('#diffSel .dopt').forEach((el, k) => el.classList.toggle('active', k === i));
+}
+try { const d = +localStorage.getItem('shadowtrial.diff'); if (d >= 1 && d <= 2) setDifficulty(d); } catch {}   // 默认 0(试炼)，仅在存过更高难度时还原
+
+// 屏震强度（V 循环：强/弱/关，照顾晕动症）
+const SHAKE_STEPS = [1, 0.4, 0], SHAKE_NAMES = ['强', '弱', '关'];
+function cycleShake() {
+  const i = (SHAKE_STEPS.indexOf(getShakeScale()) + 1 + SHAKE_STEPS.length) % SHAKE_STEPS.length;
+  setShakeScale(SHAKE_STEPS[i]);
+  try { localStorage.setItem('shadowtrial.shake', SHAKE_STEPS[i]); } catch {}
+  toast(`屏震 ${SHAKE_NAMES[i]}`, 1.0);
+}
+try { const s = localStorage.getItem('shadowtrial.shake'); if (s !== null) setShakeScale(+s); } catch {}
+
 addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'KeyM') { toast(toggleMute() ? '🔇 已静音' : '🔊 音效开', 1.0); return; }   // 静音随时可切
-  if (!state.started) return;
+  if (e.code === 'BracketLeft')  { adjustSens(-0.1); return; }   // [ 降低灵敏度
+  if (e.code === 'BracketRight') { adjustSens(0.1); return; }    // ] 提高灵敏度
+  if (e.code === 'KeyV') { cycleShake(); return; }               // V 屏震强度
+  if (!state.started) {                          // 开始界面：1/2/3 选难度，其余吞掉
+    if (e.code === 'Digit1') setDifficulty(0);
+    else if (e.code === 'Digit2') setDifficulty(1);
+    else if (e.code === 'Digit3') setDifficulty(2);
+    return;
+  }
   if (state.phase === 'upgrade') {            // 波间强化：1/2/3 选择，空格重随，其余吞掉
     if (e.code === 'Digit1') pickUpgrade(0);
     else if (e.code === 'Digit2') pickUpgrade(1);
@@ -65,8 +100,8 @@ document.addEventListener('pointerlockchange', () => {
 });
 document.addEventListener('mousemove', e => {
   if (!locked || state.lockTarget) return;          // 锁定时镜头由系统接管
-  look.yaw -= e.movementX * 0.0025;
-  look.pitch = clamp(look.pitch - e.movementY * 0.0025, 0.08, 1.2);
+  look.yaw -= e.movementX * 0.0025 * sens;
+  look.pitch = clamp(look.pitch - e.movementY * 0.0025 * sens, 0.08, 1.2);
 });
 
 // 已锁定时：滚轮在存活敌人间按距离循环切换锁定目标

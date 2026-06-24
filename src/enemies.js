@@ -20,14 +20,14 @@ import {
   CASTER_HP, C_KITE, C_CAST_RANGE, C_WINDUP, C_RECOVER, C_SPEED,
   DASHER_HP, D_RANGE, D_SPEED, D_WINDUP, D_DASH, D_RECOVER, D_DASH_SPEED, D_DMG, PICKUP,
   BRUTE_HP, BR_RANGE, BR_SPEED, BR_WINDUP, BR_ACTIVE, BR_RECOVER, BR_DMG,
-  COMBO_WINDOW, ENERGY_MAX,
+  COMBO_WINDOW, ENERGY_MAX, DIFFS,
 } from './config.js';
 
 export const enemies = [];
 let boss = null;
 const tmp = new THREE.Vector3();
 const tmpN = new THREE.Vector3();   // 归一化方向复用（避免热循环每帧 clone）
-const hpScale = () => 1 + 0.30 * state.abyss;   // 深渊余烬：每层敌人血量 +30%
+const hpScale = () => (1 + 0.30 * state.abyss) * DIFFS[state.difficulty].hp;   // 深渊每层 +30% × 难度系数
 
 export function spawnMinion(x, z) {
   const e = {
@@ -106,7 +106,7 @@ export function spawnBoss(hpScale = 1, name = '暗 影 督 军', sub = '试炼�
   mesh.position.set(0, 0, -16);
   scene.add(mesh);
 
-  const hp = Math.round(BOSS_HP * hpScale);
+  const hp = Math.round(BOSS_HP * hpScale * DIFFS[state.difficulty].hp);   // Boss 也吃难度血量缩放
   boss = {
     mesh, aura, glowColor: COLORS.bossGlow,
     hp, maxHp: hp, posture: 0, maxPosture: BOSS_MAX_POSTURE,

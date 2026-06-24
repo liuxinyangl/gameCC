@@ -8,6 +8,7 @@ export const state = {
   wave: 0,              // 当前波次（从 1 起）
   abyss: 0,             // 深渊余烬层数（通关后无尽模式；0 = 未进入）
   bossDown: false,      // 是否已击败 Boss（深渊中阵亡也算达成试炼）
+  difficulty: 0,        // 难度档位索引（见 config.DIFFS）
   lockTarget: null,
   shake: 0,
   hitStop: 0,           // 命中顿帧：>0 时几乎冻结战斗
@@ -20,7 +21,11 @@ export const state = {
 // 镜头角度：鼠标(input) 与 锁定(camera) 都会写它
 export const look = { yaw: Math.PI, pitch: 0.35, fov: 55, fovTarget: 55 };
 
-export function addShake(v) { if (v > state.shake) state.shake = v; }
+// 屏震强度系数（无障碍：可调强/弱/关），addShake 单入口乘算
+let shakeScale = 1;
+export function setShakeScale(s) { shakeScale = s; }
+export function getShakeScale() { return shakeScale; }
+export function addShake(v) { v *= shakeScale; if (v > state.shake) state.shake = v; }
 export function hitStop(d)  { if (d > state.hitStop) state.hitStop = d; }
 export function slowmo(d)   { if (d > state.slowmo) state.slowmo = d; }
 

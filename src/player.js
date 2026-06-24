@@ -18,7 +18,7 @@ import {
   LIGHT_COMBO, LIGHT_RANGE, LIGHT_ARC, LIGHT_KNOCK, HEAVY,
   DODGE_DURATION, DODGE_IFRAME, DODGE_SPEED, DODGE_COST,
   MOVE_SPEED, SPRINT_SPEED, SPRINT_COST, HEAL_DURATION, HEAL_AMOUNT,
-  PARRY, ENERGY_MAX, ENERGY_GAIN, ULT, HITSTOP, SLOWMO_PARRY, COLORS,
+  PARRY, ENERGY_MAX, ENERGY_GAIN, ULT, HITSTOP, SLOWMO_PARRY, COLORS, DIFFS,
 } from './config.js';
 
 export const player = {
@@ -147,6 +147,7 @@ export function parrySuccess(e) {
 // 玩家被命中
 export function hitPlayer(dmg, fromDir) {
   if (state.abyss > 0) dmg *= 1 + 0.12 * state.abyss;   // 深渊余烬：敌人伤害逐层提升
+  dmg *= DIFFS[state.difficulty].dmg;             // 难度：受伤缩放
   player.hp -= dmg * (1 - player.dmgReduction);   // 「守势」强化减伤
 
   player.vel.copy(fromDir).multiplyScalar(5).negate();

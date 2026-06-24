@@ -4,9 +4,9 @@
 import { state } from './state.js';
 import { player } from './player.js';
 import { countAliveMinions } from './enemies.js';
-import { ENERGY_MAX, HEAVY, DODGE_COST, PARRY, WAVES } from './config.js';
+import { ENERGY_MAX, HEAVY, DODGE_COST, PARRY, WAVES, DIFFS } from './config.js';
 import { styleRank, styleProgress, stylePoints, bestRank, bestStyleLevel } from './style.js';
-import { acquired } from './upgrades.js';
+import { acquired, TIERS } from './upgrades.js';
 import { sfx, isMuted } from './audio.js';
 
 const $ = id => document.getElementById(id);
@@ -29,11 +29,18 @@ const clearedEl = $('cleared');
 const BEST_KEY = 'shadowtrial.best';
 const getBest = () => { try { return +localStorage.getItem(BEST_KEY) || 0; } catch { return 0; } };
 const setBest = v => { try { localStorage.setItem(BEST_KEY, v); } catch {} };
+const DEEP_KEY = 'shadowtrial.deepest';                              // 深渊最深抵达层（独立持久化，类似最高分）
+const getDeep = () => { try { return +localStorage.getItem(DEEP_KEY) || 0; } catch { return 0; } };
+const setDeep = v => { try { localStorage.setItem(DEEP_KEY, v); } catch {} };
 
-// 开始界面展示历史最高（载入即填）
+// 开始界面展示历史最高 + 最深层（载入即填）
 {
-  const best = getBest(), bestLine = $('bestLine');
-  if (best > 0 && bestLine) { bestLine.textContent = `历史最高 ${best.toLocaleString()}`; bestLine.style.display = 'block'; }
+  const best = getBest(), deep = getDeep(), bestLine = $('bestLine');
+  if ((best > 0 || deep > 0) && bestLine) {
+    bestLine.innerHTML = [best > 0 ? `历史最高 ${best.toLocaleString()}` : '', deep > 0 ? `最深 ${deep} 层` : '']
+      .filter(Boolean).join('　·　');
+    bestLine.style.display = 'block';
+  }
 }
 
 let questSig = '';
@@ -49,7 +56,7 @@ export function updateHUD() {
     buildSig = bsig;
     buildEl.classList.toggle('on', acquired.length > 0);
     buildChipsEl.innerHTML = acquired.map(a =>
-      `<div class="chip" title="${a.name}"><span class="ci">${a.icon}</span>${a.count > 1 ? `<span class="cx">${a.count}</span>` : ''}</div>`
+      `<div class="chip ${a.tier}" title="${a.name}"><span class="ci">${a.icon}</span>${a.count > 1 ? `<span class="cx">${a.count}</span>` : ''}</div>`
     ).join('');
   }
 
@@ -143,7 +150,7 @@ export function updateBanner(dt) { if (bannerTimer > 0) { bannerTimer -= dt; if 
 // 波间强化面板（按 1/2/3 选；指针锁定下不用鼠标）
 export function showUpgrades(choices) {
   upCardsEl.innerHTML = choices.map((u, i) =>
-    `<div class="upcard"><div class="uicon">${u.icon}</div><div class="uk">[${i + 1}]</div><div class="un">${u.name}</div><div class="ud">${u.desc}</div></div>`
+    `<div class="upcard ${u.tier}"><div class="urar">${TIERS[u.tier].name}</div><div class="uicon">${u.icon}</div><div class="uk">[${i + 1}]</div><div class="un">${u.name}</div><div class="ud">${u.desc}</div></div>`
   ).join('');
   upgradeEl.classList.add('show');
 }
@@ -171,12 +178,16 @@ export function showEnd(win) {
   const br = bestRank();
   const t = state.runTime, mm = Math.floor(t / 60), ss = Math.floor(t % 60);
   const timeStr = `${mm}:${String(ss).padStart(2, '0')}`;
-  // 总分：基础击杀 + 精英 + 弹反 + 连杀 + 评级 + 通关奖励 + 深渊层数
-  const score = state.kills * 100 + state.elites * 300 + state.parries * 60 + state.maxCombo * 50
-              + bestStyleLevel() * 400 + (state.bossDown ? 2000 : 0) + state.abyss * 500;
+  // 总分：(击杀 + 精英 + 弹反 + 连杀 + 评级 + 通关 + 深渊) × 难度系数
+  const diff = DIFFS[state.difficulty];
+  const score = Math.round((state.kills * 100 + state.elites * 300 + state.parries * 60 + state.maxCombo * 50
+              + bestStyleLevel() * 400 + (state.bossDown ? 2000 : 0) + state.abyss * 500) * diff.score);
   const prevBest = getBest();
   const isRecord = score > prevBest;
   if (isRecord) setBest(score);
+  const prevDeep = getDeep();
+  const isDeepRecord = state.abyss > 0 && state.abyss > prevDeep;
+  if (isDeepRecord) setDeep(state.abyss);
   const recordLine = isRecord
     ? `<div style="font-size:18px;font-weight:800;color:#ff6bd0;letter-spacing:3px;margin-top:10px">★ 新 纪 录 ！</div>`
     : `<div style="font-size:13px;color:#8fa0b8;letter-spacing:2px;margin-top:10px">历史最高 ${prevBest.toLocaleString()}</div>`;
@@ -188,10 +199,19 @@ export function showEnd(win) {
   const title = win ? '试 炼 通 过' : (state.bossDown ? '深 渊 折 戟' : '你 倒 下 了');
   const sub = win ? '暗影督军已被击溃，试炼达成。'
             : (state.bossDown ? `你已击败督军，于深渊第 ${state.abyss} 层力竭长眠。` : '影中的强敌将你击溃。');
+  const buildHtml = acquired.length
+    ? `<div style="font-size:12px;color:#8fa0b8;letter-spacing:3px;margin-top:6px">本 局 构 筑</div>
+       <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:440px;margin:9px auto 2px">
+         ${acquired.map(a => `<div class="chip ${a.tier}" title="${a.name}"><span class="ci">${a.icon}</span>${a.count > 1 ? `<span class="cx">${a.count}</span>` : ''}</div>`).join('')}
+       </div>` : '';
+  const deepLine = state.abyss > 0
+    ? `<div style="font-size:13px;color:${isDeepRecord ? '#ff6bd0' : '#8fa0b8'};letter-spacing:2px;margin-top:6px">${isDeepRecord ? '★ 最 深 纪 录 ！' : `历史最深 ${prevDeep} 层`}</div>`
+    : '';
   overlay.innerHTML = `
     <div class="big ${triumph ? 'win' : 'lose'}">${title}</div>
     <p>${sub}</p>
-    <div style="display:flex;gap:30px;margin:26px 0 10px;flex-wrap:wrap;justify-content:center">
+    <div style="font-size:13px;letter-spacing:3px;color:${diff.color};margin-top:2px">难度 · ${diff.name}　（分数 ×${diff.score}）</div>
+    <div style="display:flex;gap:30px;margin:24px 0 10px;flex-wrap:wrap;justify-content:center">
       ${stat('击杀', state.kills)}
       ${stat('精英', state.elites, '#ffd24a')}
       ${stat('最高连杀', state.maxCombo, '#ff8f5a')}
@@ -199,8 +219,9 @@ export function showEnd(win) {
       ${stat('最高评级', br.letter, br.color)}
       ${state.abyss > 0 ? stat('深渊层数', state.abyss, '#ff6bd0') : stat('用时', timeStr)}
     </div>
-    <div style="font-size:14px;color:#8fa0b8;letter-spacing:4px;margin-top:8px">总 分</div>
+    ${buildHtml}
+    <div style="font-size:14px;color:#8fa0b8;letter-spacing:4px;margin-top:10px">总 分</div>
     <div style="font-size:48px;font-weight:900;font-style:italic;color:#ffd43b;text-shadow:0 2px 16px rgba(0,0,0,.7)">${score.toLocaleString()}</div>
-    ${recordLine}
-    <p style="margin-top:22px;font-size:18px;color:#ffd43b;">按 <b style="color:#ffd43b">R</b> 重新开始</p>`;
+    ${recordLine}${deepLine}
+    <p style="margin-top:20px;font-size:18px;color:#ffd43b;">按 <b style="color:#ffd43b">R</b> 重新开始</p>`;
 }

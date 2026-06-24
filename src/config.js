@@ -82,6 +82,13 @@ export const WAVES = [
   { imp: 4, caster: 2, dasher: 2, brute: 1 },   // 6 · 全员压上 → Boss
 ];
 
+// ---- 难度模式：缩放敌人血量 / 玩家受伤 / 结算分数 ----
+export const DIFFS = [
+  { name: '试 炼', sub: '标准节奏',   hp: 1.0, dmg: 1.0,  score: 1.0, color: '#7be88a' },
+  { name: '狩 猎', sub: '敌更强韧',   hp: 1.3, dmg: 1.25, score: 1.5, color: '#ffd24a' },
+  { name: '噩 梦', sub: '稍纵即逝',   hp: 1.7, dmg: 1.5,  score: 2.2, color: '#ff6b6b' },
+];
+
 // ---- 阵营配色（自发光，配合 Bloom 发光）----
 export const COLORS = {
   player: 0x4dabf7, playerGlow: 0x2b6cff,

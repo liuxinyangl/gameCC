@@ -92,6 +92,15 @@
   #center .keys b { color: #ffd43b; }
   #center .big { font-size: 66px; letter-spacing: 10px; margin-bottom: 14px; }
   .win { color: #ffe066 !important; } .lose { color: #ff6b6b !important; }
+  /* 开始界面：难度选择 */
+  #diffSel { display: flex; gap: 12px; margin-top: 22px; }
+  #diffSel .dopt { padding: 10px 14px; border-radius: 10px; border: 2px solid #3a4a6a; background: linear-gradient(160deg,#1a2034,#0b0e1a);
+                   display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 94px; transition: border-color .2s, box-shadow .2s; }
+  #diffSel .dopt .dk { font-size: 11px; color: #5bd0ff; font-weight: 700; }
+  #diffSel .dopt .dn { font-size: 16px; letter-spacing: 2px; color: #cdd; }
+  #diffSel .dopt .ds { font-size: 11px; color: #8fa0b8; letter-spacing: 1px; }
+  #diffSel .dopt.active { border-color: #ffd43b; box-shadow: 0 0 16px rgba(255,212,59,.32); }
+  #diffSel .dopt.active .dn { color: #fff; }
 
   /* ---- 波间强化选择 ---- */
   #upgrade { position: fixed; inset: 0; z-index: 20; display: none; flex-direction: column; align-items: center; justify-content: center;
@@ -106,6 +115,10 @@
   .upcard .uk { font-size: 12px; letter-spacing: 1px; color: #5bd0ff; font-weight: 700; }
   .upcard .un { font-size: 19px; font-weight: 800; color: #fff; }
   .upcard .ud { font-size: 13px; color: #9fb0c8; line-height: 1.55; }
+  .upcard .urar { font-size: 11px; letter-spacing: 3px; font-weight: 700; }
+  .upcard.common { border-color: #6b7686; } .upcard.common .urar { color: #9aa6b5; }
+  .upcard.rare { border-color: #5bd0ff; box-shadow: 0 6px 18px rgba(0,0,0,.5), 0 0 16px rgba(91,208,255,.32); } .upcard.rare .urar { color: #5bd0ff; }
+  .upcard.epic { border-color: #ffd24a; box-shadow: 0 6px 18px rgba(0,0,0,.5), 0 0 26px rgba(255,210,74,.5); } .upcard.epic .urar { color: #ffd24a; }
   #upgrade .tip { margin-top: 20px; font-size: 13px; opacity: .8; }
   #upgrade .tip b { color: #ffd43b; }
 
@@ -161,6 +174,7 @@
           background: linear-gradient(160deg,#1a2034,#0b0e1a); border: 1px solid #34507a; box-shadow: inset 0 0 8px rgba(0,0,0,.5), 0 1px 3px #000; }
   .chip .ci { font-size: 16px; filter: drop-shadow(0 1px 1px #000); }
   .chip .cx { position: absolute; bottom: -4px; right: -4px; font-size: 9px; font-weight: 700; color: #69ff9c; background: #103018; border: 1px solid #2a6; border-radius: 4px; padding: 0 2px; }
+  .chip.rare { border-color: #5bd0ff; } .chip.epic { border-color: #ffd24a; box-shadow: inset 0 0 8px rgba(0,0,0,.5), 0 0 8px rgba(255,210,74,.4); }
 </style>
 </head>
 <body>
@@ -214,7 +228,8 @@
   <div class="sub">试 炼 暂 歇</div>
   <div class="keys">
     <b>WASD</b> 移动 · <b>鼠标</b> 视角 · <b>左键/J</b> 连击 · <b>K</b> 重击<br>
-    <b>空格</b> 翻滚 · <b>右键/Q</b> 弹反 · <b>E</b> 影斩 · <b>Shift</b> 冲刺 · <b>F</b> 回血 · <b>Tab</b> 锁定
+    <b>空格</b> 翻滚 · <b>右键/Q</b> 弹反 · <b>E</b> 影斩 · <b>Shift</b> 冲刺 · <b>F</b> 回血 · <b>Tab</b> 锁定<br>
+    <b>滚轮</b> 切换锁定目标 · <b>M</b> 静音 · <b>[ ]</b> 灵敏度 · <b>V</b> 屏震
   </div>
   <p class="aud" id="pauseAudio"></p>
   <p class="go">▶ 点击屏幕 / 按 <b>P</b> 继续　·　按 <b>R</b> 重新开始</p>
@@ -236,10 +251,15 @@
     <b>WASD</b> 移动 · <b>鼠标</b> 视角 · <b>左键/J</b> 三连击 · <b>K</b> 重击（破防）<br>
     <b>空格</b> 翻滚（无敌帧 + 残影）· <b>右键/Q</b> 弹反（攒"势"→破势处决）· <b>Tab</b> 锁定<br>
     <b>E</b> 大招「影斩」（能量满时范围旋斩）· <b>Shift</b> 冲刺 · <b>F</b> 回血<br>
-    <b>P</b> 暂停 · <b>M</b> 静音 · <b>R</b> 重开
+    <b>P</b> 暂停 · <b>M</b> 静音 · <b>[ ]</b> 灵敏度 · <b>V</b> 屏震 · <b>R</b> 重开
   </div>
   <p id="bestLine" style="margin-top:22px;font-size:15px;color:#ffd24a;letter-spacing:2px;display:none;"></p>
-  <p style="margin-top:14px;font-size:18px;color:#ffd43b;">▶ 点击屏幕开始</p>
+  <div id="diffSel">
+    <div class="dopt active" data-i="0"><span class="dk">[1]</span><span class="dn">试 炼</span><span class="ds">标准节奏</span></div>
+    <div class="dopt" data-i="1"><span class="dk">[2]</span><span class="dn">狩 猎</span><span class="ds">敌更强韧</span></div>
+    <div class="dopt" data-i="2"><span class="dk">[3]</span><span class="dn">噩 梦</span><span class="ds">稍纵即逝</span></div>
+  </div>
+  <p style="margin-top:18px;font-size:18px;color:#ffd43b;">按 <b style="color:#ffd43b">1 / 2 / 3</b> 选难度　·　▶ 点击屏幕开始</p>
 </div>
 
 <script type="importmap">

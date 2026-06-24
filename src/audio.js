@@ -15,6 +15,32 @@ export function initAudio() {
   master = ctx.createGain();
   master.gain.value = muted ? 0 : BASE_VOL;
   master.connect(ctx.destination);
+  startAmbient();
+}
+
+// 暗黑氛围垫：失谐低频锯齿 → 低通（带缓慢 LFO 起伏）→ 缓入；经 master 走总线，静音随之静
+let musicStarted = false;
+function startAmbient() {
+  if (!ctx || musicStarted) return;
+  musicStarted = true;
+  const t = ctx.currentTime;
+  const bus = ctx.createGain();
+  bus.gain.setValueAtTime(0.0001, t);
+  bus.gain.exponentialRampToValueAtTime(0.10, t + 5);   // 5 秒缓入
+  bus.connect(master);
+
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 380; lp.Q.value = 5; lp.connect(bus);
+
+  [55, 55.5, 82.5].forEach((f, i) => {                  // 根音 + 微失谐 + 五度
+    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
+    const g = ctx.createGain(); g.gain.value = i === 2 ? 0.16 : 0.28;
+    o.connect(g).connect(lp); o.start(t);
+  });
+
+  const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.05;   // 极慢呼吸
+  const lfoG = ctx.createGain(); lfoG.gain.value = 220;
+  lfo.connect(lfoG).connect(lp.frequency); lfo.start(t);
 }
 
 export function isMuted() { return muted; }
